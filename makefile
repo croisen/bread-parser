@@ -10,7 +10,7 @@ VALGRIND	:= $(shell command -v valgrind 2> /dev/null)
 test:
 	${CC} ${CFLAGS} ${OPTS} -o ${EXE} ${MAIN}
 ifdef VALGRIND
-	valgrind --track-origins=yes ./${EXE}
+	valgrind --track-origins=yes --leak-check=full --track-origins=yes ./${EXE}
 else
 	./${EXE}
 endif

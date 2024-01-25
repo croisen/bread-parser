@@ -13,10 +13,9 @@
 
 enum __arg_type
 {
-    BREAD_PTR  = 0,
-    BREAD_I64  = 1,
-    BREAD_U64  = 2,
-    BREAD_CHAR = 4,
+    BREAD_I64,
+    BREAD_U64,
+    BREAD_CHAR,
 };
 
 struct __arg
@@ -68,15 +67,16 @@ void *bread_realloc(void *ptr, size_t size);
 DA some_args    = {0};
 DA alloced_ptrs = {0};
 
-void bread_panic(const char *message, ...)
+#define bread_panic(message, ...)            \
+    fprintf(stderr, message, ##__VA_ARGS__); \
+    exit(EXIT_FAILURE)
+
+int bread_args_compare(const void *a, const void *b)
 {
-    va_list args;
-    va_start(args, message);
+    ArgPtr c = *(ArgPtr *)a;
+    ArgPtr d = *(ArgPtr *)b;
 
-    fprintf(stderr, message, args);
-
-    va_end(args);
-    exit(EXIT_FAILURE);
+    return c->group_num - d->group_num;
 }
 
 void __memtracker_init()
@@ -228,6 +228,9 @@ bread_realloc_ret:
 
 void bread_print_args()
 {
+    qsort((ArgPtr *)some_args->ptrs, some_args->used, sizeof(ArgPtr),
+          bread_args_compare);
+
     size_t opt_len = 0;
     for (size_t i = 0; i < some_args->used; i++)
     {
@@ -269,9 +272,6 @@ void bread_print_args()
                 enum __arg_type z = x->arg_type_list[iii];
                 switch (z)
                 {
-                case BREAD_PTR:
-                    printf("PTR");
-                    break;
                 case BREAD_I64:
                     printf("INT");
                     break;
@@ -300,12 +300,6 @@ void bread_print_args()
     }
 }
 
-void bread_parse(int argc, char **argv)
-{
-    (void)argc, (void)argv; // Not used for now
-    bread_panic("Not implemented yet, bread_parse\n");
-}
-
 void bread_parser_add_option(char short_opt, char *long_opt, size_t group)
 {
     if (!some_args->init)
@@ -318,8 +312,7 @@ void bread_parser_add_option(char short_opt, char *long_opt, size_t group)
         if (some_args->ptrs == NULL)
         {
             bread_panic("Cannot initialize memory for storing the "
-                        "arguments, calloc "
-                        "returned NULL\n");
+                        "arguments, calloc returned NULL\n");
         }
     }
 
@@ -438,6 +431,215 @@ void bread_parser_opt_argmts(char short_opt, size_t arg_count, ...)
     }
 
     va_end(args);
+}
+
+void bread_parse(int argc, char **argv)
+{
+    for (int i = 1; i < argc; i += 1)
+    {
+        ArgPtr x = NULL;
+        if (argv[i][0] == '-')
+        {
+            if (argv[i][1] == '-')
+            {
+                for (size_t ii = 0; ii < some_args->used; ii += 1)
+                {
+                    if (strcmp(((ArgPtr)some_args->ptrs[ii])->long_opt,
+                               &argv[i][2]) == 0)
+                    {
+                        x = (ArgPtr)some_args->ptrs[ii];
+                    }
+                }
+
+                if (x == NULL)
+                {
+                    bread_panic("Unknown argument %s was passed\n", argv[i]);
+                }
+
+                x->used = true;
+                if (x->arg_count > 0)
+                {
+                    x->args = bread_malloc(sizeof(void *) * x->arg_count);
+                    if (x->args == NULL)
+                    {
+                        bread_panic("Cannot allocate memory for the arguments "
+                                    "of opt %s\n",
+                                    argv[i]);
+                    }
+                }
+
+                for (size_t ii = 1; ii <= x->arg_count; ii += 1)
+                {
+                    switch (x->arg_type_list[ii - 1])
+                    {
+                    case BREAD_I64:
+                    {
+                        char *idk;
+                        long res = strtol(argv[i + ii], &idk, 10);
+                        if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                        {
+                            bread_panic(
+                                "Expecting a number argument for opt arg #%lu "
+                                "of %s, got %s\n",
+                                ii, argv[i], argv[i + ii]);
+                        }
+
+                        x->args[ii - 1] = bread_malloc(sizeof(res));
+                        if (x->args[ii - 1] == NULL)
+                        {
+                            bread_panic(
+                                "Cannot allocate memory for the argument "
+                                "of opt %s which is %s\n",
+                                argv[i], argv[i + ii]);
+                        }
+
+                        x->args[ii - 1] = &res;
+                        break;
+                    }
+                    case BREAD_U64:
+                    {
+                        char *idk;
+                        unsigned long res = strtoul(argv[i + ii], &idk, 10);
+                        if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                        {
+                            bread_panic("Expecting an unsigned number argument "
+                                        "for opt arg #%lu of %s, got %s\n",
+                                        ii, argv[i], argv[i + ii]);
+                        }
+
+                        x->args[ii - 1] = bread_malloc(sizeof(res));
+                        if (x->args[ii - 1] == NULL)
+                        {
+                            bread_panic(
+                                "Cannot allocate memory for the argument "
+                                "of opt %s which is %s\n",
+                                argv[i], argv[i + ii]);
+                        }
+
+                        x->args[ii - 1] = &res;
+                        break;
+                    }
+                    case BREAD_CHAR:
+                    {
+                        x->args[ii - 1] = bread_malloc(
+                            (strlen(argv[i + ii]) + 1) * sizeof(char));
+                        if (x->args[ii - 1] == NULL)
+                        {
+                            bread_panic(
+                                "Cannot allocate memory for the argument "
+                                "of opt %s which is %s\n",
+                                argv[i], argv[i + ii]);
+                        }
+
+                        strcpy(x->args[ii - 1], argv[i + ii]);
+                        break;
+                    }
+                    }
+                }
+            }
+            else
+            {
+                for (size_t ii = 0; ii < some_args->used; ii += 1)
+                {
+                    if (((ArgPtr)some_args->ptrs[ii])->short_opt == argv[i][1])
+                    {
+                        x = (ArgPtr)some_args->ptrs[ii];
+                    }
+                }
+
+                if (x == NULL)
+                {
+                    bread_panic("Unknown argument %s was passed\n", argv[i]);
+                }
+
+                x->used = true;
+                if (x->arg_count > 0)
+                {
+                    x->args = bread_malloc(sizeof(void *) * x->arg_count);
+                    if (x->args == NULL)
+                    {
+                        bread_panic("Cannot allocate memory for the arguments "
+                                    "of opt %s\n",
+                                    argv[i]);
+                    }
+                }
+
+                for (size_t ii = 1; ii <= x->arg_count; ii += 1)
+                {
+                    switch (x->arg_type_list[ii - 1])
+                    {
+                    case BREAD_I64:
+                    {
+                        char *idk;
+                        long res = strtol(argv[i + ii], &idk, 10);
+                        if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                        {
+                            bread_panic(
+                                "Expecting a number argument for opt arg #%lu "
+                                "of %s, got %s\n",
+                                ii, argv[i], argv[i + ii]);
+                        }
+
+                        x->args[ii - 1] = bread_malloc(sizeof(res));
+                        if (x->args[ii - 1] == NULL)
+                        {
+                            bread_panic(
+                                "Cannot allocate memory for the argument "
+                                "of opt %s which is %s\n",
+                                argv[i], argv[i + ii]);
+                        }
+
+                        x->args[ii - 1] = &res;
+                        break;
+                    }
+                    case BREAD_U64:
+                    {
+                        char *idk;
+                        unsigned long res = strtoul(argv[i + ii], &idk, 10);
+                        if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                        {
+                            bread_panic("Expecting an unsigned number argument "
+                                        "for opt arg #%lu of %s, got %s\n",
+                                        ii, argv[i], argv[i + ii]);
+                        }
+
+                        x->args[ii - 1] = bread_malloc(sizeof(res));
+                        if (x->args[ii - 1] == NULL)
+                        {
+                            bread_panic(
+                                "Cannot allocate memory for the argument "
+                                "of opt %s which is %s\n",
+                                argv[i], argv[i + ii]);
+                        }
+
+                        x->args[ii - 1] = &res;
+                        break;
+                    }
+                    case BREAD_CHAR:
+                    {
+                        x->args[ii - 1] = bread_malloc(
+                            (strlen(argv[i + ii]) + 1) * sizeof(char));
+                        if (x->args[ii - 1] == NULL)
+                        {
+                            bread_panic(
+                                "Cannot allocate memory for the argument "
+                                "of opt %s which is %s\n",
+                                argv[i], argv[i + ii]);
+                        }
+
+                        strcpy(x->args[ii - 1], argv[i + ii]);
+                        break;
+                    }
+                    }
+                }
+            }
+        }
+
+        if (x != NULL)
+        {
+            i += x->arg_count;
+        }
+    }
 }
 
 #endif

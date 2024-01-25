@@ -1,7 +1,7 @@
 #define CROI_LIB_BREAD_PARSER_IMPL_H
 #include "bread_parser.h"
 
-int main(void)
+int main(int argc, char **argv)
 {
     bread_parser_add_option('o', "option", 0);
     bread_parser_add_descrp('o', "Some option");
@@ -14,5 +14,6 @@ int main(void)
     bread_parser_opt_argmts('p', 3, BREAD_I64, BREAD_CHAR, BREAD_U64);
 
     bread_print_args();
+    bread_parse(argc, argv);
     return 0;
 }
