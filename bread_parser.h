@@ -1,3 +1,13 @@
+// O hail no
+
+#if defined __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#elif defined __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wvariadic-macros"
+#endif
+
 #ifndef CROI_LIB_BREAD_PARSER_H
 #define CROI_LIB_BREAD_PARSER_H
 
