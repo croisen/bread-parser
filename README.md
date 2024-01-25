@@ -30,7 +30,7 @@ int main(int argc, char **argv)
     // Must be in order and if the user of your program supplies
     // less than the number of arg count specified, or supplies
     // argument types that are not in the left to right order
-    // defined here. Well the bread_parser will panic
+    // defined here. Well the bread_parser will exit
     bread_parser_opt_argmts('p', 3, BREAD_I64, BREAD_CHAR, BREAD_U64);
 
     // Debug print all opts, descriptions, and their args
