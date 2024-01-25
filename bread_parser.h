@@ -466,74 +466,75 @@ void bread_parse(int argc, char **argv)
                                     "of opt %s\n",
                                     argv[i]);
                     }
-                }
 
-                for (size_t ii = 1; ii <= x->arg_count; ii += 1)
-                {
-                    switch (x->arg_type_list[ii - 1])
+                    for (size_t ii = 1; ii <= x->arg_count; ii += 1)
                     {
-                    case BREAD_I64:
-                    {
-                        char *idk;
-                        long res = strtol(argv[i + ii], &idk, 10);
-                        if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                        switch (x->arg_type_list[ii - 1])
                         {
-                            bread_panic(
-                                "Expecting a number argument for opt arg #%lu "
-                                "of %s, got %s\n",
-                                ii, argv[i], argv[i + ii]);
-                        }
-
-                        x->args[ii - 1] = bread_malloc(sizeof(res));
-                        if (x->args[ii - 1] == NULL)
+                        case BREAD_I64:
                         {
-                            bread_panic(
-                                "Cannot allocate memory for the argument "
-                                "of opt %s which is %s\n",
-                                argv[i], argv[i + ii]);
-                        }
+                            char *idk;
+                            long res = strtol(argv[i + ii], &idk, 10);
+                            if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                            {
+                                bread_panic("Expecting a number argument for "
+                                            "opt arg #%lu "
+                                            "of %s, got %s\n",
+                                            ii, argv[i], argv[i + ii]);
+                            }
 
-                        x->args[ii - 1] = &res;
-                        break;
-                    }
-                    case BREAD_U64:
-                    {
-                        char *idk;
-                        unsigned long res = strtoul(argv[i + ii], &idk, 10);
-                        if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                            x->args[ii - 1] = bread_malloc(sizeof(res));
+                            if (x->args[ii - 1] == NULL)
+                            {
+                                bread_panic(
+                                    "Cannot allocate memory for the argument "
+                                    "of opt %s which is %s\n",
+                                    argv[i], argv[i + ii]);
+                            }
+
+                            x->args[ii - 1] = &res;
+                            break;
+                        }
+                        case BREAD_U64:
                         {
-                            bread_panic("Expecting an unsigned number argument "
-                                        "for opt arg #%lu of %s, got %s\n",
-                                        ii, argv[i], argv[i + ii]);
-                        }
+                            char *idk;
+                            unsigned long res = strtoul(argv[i + ii], &idk, 10);
+                            if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                            {
+                                bread_panic(
+                                    "Expecting an unsigned number argument "
+                                    "for opt arg #%lu of %s, got %s\n",
+                                    ii, argv[i], argv[i + ii]);
+                            }
 
-                        x->args[ii - 1] = bread_malloc(sizeof(res));
-                        if (x->args[ii - 1] == NULL)
+                            x->args[ii - 1] = bread_malloc(sizeof(res));
+                            if (x->args[ii - 1] == NULL)
+                            {
+                                bread_panic(
+                                    "Cannot allocate memory for the argument "
+                                    "of opt %s which is %s\n",
+                                    argv[i], argv[i + ii]);
+                            }
+
+                            x->args[ii - 1] = &res;
+                            break;
+                        }
+                        case BREAD_CHAR:
                         {
-                            bread_panic(
-                                "Cannot allocate memory for the argument "
-                                "of opt %s which is %s\n",
-                                argv[i], argv[i + ii]);
-                        }
+                            x->args[ii - 1] = bread_malloc(
+                                (strlen(argv[i + ii]) + 1) * sizeof(char));
+                            if (x->args[ii - 1] == NULL)
+                            {
+                                bread_panic(
+                                    "Cannot allocate memory for the argument "
+                                    "of opt %s which is %s\n",
+                                    argv[i], argv[i + ii]);
+                            }
 
-                        x->args[ii - 1] = &res;
-                        break;
-                    }
-                    case BREAD_CHAR:
-                    {
-                        x->args[ii - 1] = bread_malloc(
-                            (strlen(argv[i + ii]) + 1) * sizeof(char));
-                        if (x->args[ii - 1] == NULL)
-                        {
-                            bread_panic(
-                                "Cannot allocate memory for the argument "
-                                "of opt %s which is %s\n",
-                                argv[i], argv[i + ii]);
+                            strcpy(x->args[ii - 1], argv[i + ii]);
+                            break;
                         }
-
-                        strcpy(x->args[ii - 1], argv[i + ii]);
-                        break;
-                    }
+                        }
                     }
                 }
             }
@@ -562,74 +563,75 @@ void bread_parse(int argc, char **argv)
                                     "of opt %s\n",
                                     argv[i]);
                     }
-                }
 
-                for (size_t ii = 1; ii <= x->arg_count; ii += 1)
-                {
-                    switch (x->arg_type_list[ii - 1])
+                    for (size_t ii = 1; ii <= x->arg_count; ii += 1)
                     {
-                    case BREAD_I64:
-                    {
-                        char *idk;
-                        long res = strtol(argv[i + ii], &idk, 10);
-                        if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                        switch (x->arg_type_list[ii - 1])
                         {
-                            bread_panic(
-                                "Expecting a number argument for opt arg #%lu "
-                                "of %s, got %s\n",
-                                ii, argv[i], argv[i + ii]);
-                        }
-
-                        x->args[ii - 1] = bread_malloc(sizeof(res));
-                        if (x->args[ii - 1] == NULL)
+                        case BREAD_I64:
                         {
-                            bread_panic(
-                                "Cannot allocate memory for the argument "
-                                "of opt %s which is %s\n",
-                                argv[i], argv[i + ii]);
-                        }
+                            char *idk;
+                            long res = strtol(argv[i + ii], &idk, 10);
+                            if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                            {
+                                bread_panic("Expecting a number argument for "
+                                            "opt arg #%lu "
+                                            "of %s, got %s\n",
+                                            ii, argv[i], argv[i + ii]);
+                            }
 
-                        x->args[ii - 1] = &res;
-                        break;
-                    }
-                    case BREAD_U64:
-                    {
-                        char *idk;
-                        unsigned long res = strtoul(argv[i + ii], &idk, 10);
-                        if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                            x->args[ii - 1] = bread_malloc(sizeof(res));
+                            if (x->args[ii - 1] == NULL)
+                            {
+                                bread_panic(
+                                    "Cannot allocate memory for the argument "
+                                    "of opt %s which is %s\n",
+                                    argv[i], argv[i + ii]);
+                            }
+
+                            x->args[ii - 1] = &res;
+                            break;
+                        }
+                        case BREAD_U64:
                         {
-                            bread_panic("Expecting an unsigned number argument "
-                                        "for opt arg #%lu of %s, got %s\n",
-                                        ii, argv[i], argv[i + ii]);
-                        }
+                            char *idk;
+                            unsigned long res = strtoul(argv[i + ii], &idk, 10);
+                            if ((res == 0) && (strcmp(argv[i + ii], "0") != 0))
+                            {
+                                bread_panic(
+                                    "Expecting an unsigned number argument "
+                                    "for opt arg #%lu of %s, got %s\n",
+                                    ii, argv[i], argv[i + ii]);
+                            }
 
-                        x->args[ii - 1] = bread_malloc(sizeof(res));
-                        if (x->args[ii - 1] == NULL)
+                            x->args[ii - 1] = bread_malloc(sizeof(res));
+                            if (x->args[ii - 1] == NULL)
+                            {
+                                bread_panic(
+                                    "Cannot allocate memory for the argument "
+                                    "of opt %s which is %s\n",
+                                    argv[i], argv[i + ii]);
+                            }
+
+                            x->args[ii - 1] = &res;
+                            break;
+                        }
+                        case BREAD_CHAR:
                         {
-                            bread_panic(
-                                "Cannot allocate memory for the argument "
-                                "of opt %s which is %s\n",
-                                argv[i], argv[i + ii]);
-                        }
+                            x->args[ii - 1] = bread_malloc(
+                                (strlen(argv[i + ii]) + 1) * sizeof(char));
+                            if (x->args[ii - 1] == NULL)
+                            {
+                                bread_panic(
+                                    "Cannot allocate memory for the argument "
+                                    "of opt %s which is %s\n",
+                                    argv[i], argv[i + ii]);
+                            }
 
-                        x->args[ii - 1] = &res;
-                        break;
-                    }
-                    case BREAD_CHAR:
-                    {
-                        x->args[ii - 1] = bread_malloc(
-                            (strlen(argv[i + ii]) + 1) * sizeof(char));
-                        if (x->args[ii - 1] == NULL)
-                        {
-                            bread_panic(
-                                "Cannot allocate memory for the argument "
-                                "of opt %s which is %s\n",
-                                argv[i], argv[i + ii]);
+                            strcpy(x->args[ii - 1], argv[i + ii]);
+                            break;
                         }
-
-                        strcpy(x->args[ii - 1], argv[i + ii]);
-                        break;
-                    }
+                        }
                     }
                 }
             }
