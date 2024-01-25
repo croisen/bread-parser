@@ -3,6 +3,7 @@
 
 #include <assert.h>
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -10,8 +11,18 @@
 
 #include <string.h>
 
+enum __arg_type
+{
+    BREAD_PTR  = 0,
+    BREAD_I64  = 1,
+    BREAD_U64  = 2,
+    BREAD_CHAR = 4,
+};
+
 struct __arg
 {
+    bool used;
+
     size_t arg_count;
     size_t group_num;
 
@@ -19,6 +30,7 @@ struct __arg
     char *long_opt;
     char *descr;
 
+    enum __arg_type *arg_type_list;
     void **args;
 };
 
@@ -30,41 +42,24 @@ struct __darr_for_ptr
     void **ptrs;
 };
 
-typedef enum __option
-{
-    NONE,
-    COOL,
-    ARGS,
-} Bread_Option_T;
-
-typedef struct __arg Arg[1];
 typedef struct __arg *ArgPtr;
 
 typedef struct __darr_for_ptr DA[1];
 
-#define bread_panic(message, ...)            \
-    fprintf(stderr, message, ##__VA_ARGS__); \
-    exit(EXIT_FAILURE)
+void bread_print_args(void);
+void bread_parse(int argc, char **argv);
 
-#define is_used(short_opt) \
-    ((__is_used(short_opt) == COOL) || (__is_used(short_opt) == ARGS))
-#define get_arg(short_opt) __get_args(short_opt)
+void bread_parser_add_option(char short_opt, char *long_opt, size_t group);
+void bread_parser_add_descrp(char short_opt, char *description);
+void bread_parser_opt_argmts(char short_opt, size_t arg_count, ...);
 
 void __memtracker_init();
 void __memtracker_free();
 
+void bread_panic(const char *message, ...);
 void *bread_calloc(size_t nmemb, size_t size);
 void *bread_malloc(size_t size);
 void *bread_realloc(void *ptr, size_t size);
-
-void bread_parse(int argc, char **argv);
-void bread_parser_add_option(char short_opt, char *long_opt, int64_t arg_count,
-                             int64_t group);
-void bread_parser_add_descr(char short_opt, char *description);
-void bread_print_args(void);
-
-Bread_Option_T __is_used(char short_opt);
-char **__get_args(char short_opt);
 
 #endif
 
@@ -72,6 +67,17 @@ char **__get_args(char short_opt);
 
 DA some_args    = {0};
 DA alloced_ptrs = {0};
+
+void bread_panic(const char *message, ...)
+{
+    va_list args;
+    va_start(args, message);
+
+    fprintf(stderr, message, args);
+
+    va_end(args);
+    exit(EXIT_FAILURE);
+}
 
 void __memtracker_init()
 {
@@ -222,10 +228,75 @@ bread_realloc_ret:
 
 void bread_print_args()
 {
+    size_t opt_len = 0;
     for (size_t i = 0; i < some_args->used; i++)
     {
         ArgPtr x = ((ArgPtr)some_args->ptrs[i]);
-        printf("-%c \t --%s \t %s\n", x->short_opt, x->long_opt, x->descr);
+        size_t y = strlen(x->long_opt);
+        if (x->long_opt != NULL)
+        {
+            opt_len = (y > opt_len) ? y : opt_len;
+        }
+    }
+
+    for (size_t i = 0; i < some_args->used; i++)
+    {
+        ArgPtr x = ((ArgPtr)some_args->ptrs[i]);
+        printf("\t-%c \t --%s", x->short_opt, x->long_opt);
+
+        if (x->arg_type_list != NULL)
+        {
+            if (x->long_opt != NULL)
+            {
+                for (size_t ii  = 0; ii < (opt_len - strlen(x->long_opt));
+                     ii        += 1)
+                {
+                    printf(" ");
+                }
+            }
+
+            if (x->descr != NULL)
+            {
+                printf("\t %s\n\t\t\t\t={ ", x->descr);
+            }
+            else
+            {
+                printf("\n\t\t\t\t={ ");
+            }
+
+            for (size_t iii = 0; iii < x->arg_count; iii += 1)
+            {
+                enum __arg_type z = x->arg_type_list[iii];
+                switch (z)
+                {
+                case BREAD_PTR:
+                    printf("PTR");
+                    break;
+                case BREAD_I64:
+                    printf("INT");
+                    break;
+                case BREAD_U64:
+                    printf("UINT");
+                    break;
+                case BREAD_CHAR:
+                    printf("STR");
+                    break;
+                }
+
+                if ((iii + 1) != x->arg_count)
+                {
+                    printf(", ");
+                }
+            }
+
+            printf(" }");
+        }
+        else if (x->descr != NULL)
+        {
+            printf("\t %s", x->descr);
+        }
+
+        printf("\n");
     }
 }
 
@@ -235,8 +306,7 @@ void bread_parse(int argc, char **argv)
     bread_panic("Not implemented yet, bread_parse\n");
 }
 
-void bread_parser_add_option(char short_opt, char *long_opt, int64_t arg_count,
-                             int64_t group)
+void bread_parser_add_option(char short_opt, char *long_opt, size_t group)
 {
     if (!some_args->init)
     {
@@ -247,9 +317,9 @@ void bread_parser_add_option(char short_opt, char *long_opt, int64_t arg_count,
         some_args->ptrs = bread_calloc(some_args->size, sizeof(ArgPtr));
         if (some_args->ptrs == NULL)
         {
-            bread_panic(
-                "Cannot initialize memory for storing the arguments, calloc "
-                "returned NULL\n");
+            bread_panic("Cannot initialize memory for storing the "
+                        "arguments, calloc "
+                        "returned NULL\n");
         }
     }
 
@@ -273,40 +343,53 @@ void bread_parser_add_option(char short_opt, char *long_opt, int64_t arg_count,
         some_args->size *= 2;
     }
 
-    some_args->ptrs[some_args->used] = bread_malloc(sizeof(struct __arg));
+    some_args->ptrs[some_args->used] = bread_calloc(1, sizeof(struct __arg));
     if (((ArgPtr)some_args->ptrs[some_args->used]) == NULL)
     {
         bread_panic(
-            "Cannot initialize memory for storing the arguments, malloc "
+            "Cannot initialize memory for storing the arguments, calloc "
             "returned NULL\n");
     }
 
-    ((ArgPtr)some_args->ptrs[some_args->used])->short_opt = short_opt;
-    ((ArgPtr)some_args->ptrs[some_args->used])->arg_count = arg_count;
-    ((ArgPtr)some_args->ptrs[some_args->used])->group_num = group;
+    ((ArgPtr)some_args->ptrs[some_args->used])->short_opt     = short_opt;
+    ((ArgPtr)some_args->ptrs[some_args->used])->group_num     = group;
+    ((ArgPtr)some_args->ptrs[some_args->used])->descr         = NULL;
+    ((ArgPtr)some_args->ptrs[some_args->used])->arg_type_list = NULL;
+    ((ArgPtr)some_args->ptrs[some_args->used])->args          = NULL;
+    ((ArgPtr)some_args->ptrs[some_args->used])->arg_count     = 0;
+    ((ArgPtr)some_args->ptrs[some_args->used])->used          = false;
 
-    ((ArgPtr)some_args->ptrs[some_args->used])->long_opt =
-        bread_malloc(sizeof(char) * (strlen(long_opt) + 1));
-
-    if (((ArgPtr)some_args->ptrs[some_args->used])->long_opt == NULL)
+    if (long_opt != NULL)
     {
-        bread_panic(
-            "Cannot initialize memory for storing the arguments, malloc "
-            "returned NULL\n");
+        ((ArgPtr)some_args->ptrs[some_args->used])->long_opt =
+            bread_malloc(sizeof(char) * (strlen(long_opt) + 1));
+
+        if (((ArgPtr)some_args->ptrs[some_args->used])->long_opt == NULL)
+        {
+            bread_panic(
+                "Cannot initialize memory for storing the arguments, malloc "
+                "returned NULL\n");
+        }
+
+        strcpy(((ArgPtr)some_args->ptrs[some_args->used])->long_opt, long_opt);
+    }
+    else
+    {
+        ((ArgPtr)some_args->ptrs[some_args->used])->long_opt = NULL;
     }
 
-    strcpy(((ArgPtr)some_args->ptrs[some_args->used])->long_opt, long_opt);
     some_args->used += 1;
 }
 
-void bread_parser_add_descr(char short_opt, char *description)
+void bread_parser_add_descrp(char short_opt, char *description)
 {
     for (size_t i = 0; i < some_args->used; i += 1)
     {
-        if (short_opt == ((ArgPtr)some_args->ptrs[i])->short_opt)
+        ArgPtr x = (ArgPtr)some_args->ptrs[i];
+        if (short_opt == x->short_opt && x->descr == NULL)
         {
             ((ArgPtr)some_args->ptrs[i])->descr =
-                bread_malloc(sizeof(char) * (strlen(description) + 1));
+                bread_calloc((strlen(description) + 1), sizeof(char));
 
             if (((ArgPtr)some_args->ptrs[i])->descr == NULL)
             {
@@ -321,7 +404,40 @@ void bread_parser_add_descr(char short_opt, char *description)
     }
 }
 
-Bread_Option_T __is_used(char short_opt);
-char **__get_args(char short_opt);
+void bread_parser_opt_argmts(char short_opt, size_t arg_count, ...)
+{
+    ArgPtr x = NULL;
+    for (size_t i = 0; i < some_args->used; i += 1)
+    {
+        if (short_opt == ((ArgPtr)some_args->ptrs[i])->short_opt)
+        {
+            x = some_args->ptrs[i];
+        }
+    }
+
+    if (x == NULL)
+    {
+        fprintf(stderr, "Argument short opt %c not found\n", short_opt);
+        return;
+    }
+
+    va_list args;
+    va_start(args, arg_count);
+
+    x->arg_count     = arg_count;
+    x->arg_type_list = bread_malloc(sizeof(enum __arg_type) * arg_count);
+    if (x->arg_type_list == NULL)
+    {
+        bread_panic("Cannot allocate memory for the arg types of option %c\n",
+                    short_opt);
+    }
+
+    for (size_t i = 0; i < arg_count; i += 1)
+    {
+        x->arg_type_list[i] = va_arg(args, enum __arg_type);
+    }
+
+    va_end(args);
+}
 
 #endif
