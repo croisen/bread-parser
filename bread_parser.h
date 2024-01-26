@@ -116,6 +116,7 @@ void __memtracker_init(void)
 {
     atexit(__memtracker_free_void);
     signal(SIGINT, __memtracker_free_sig);
+    signal(SIGSEGV, __memtracker_free_sig);
 
     alloced_ptrs->init = true;
     alloced_ptrs->size = 4;
@@ -143,7 +144,7 @@ void __memtracker_free_void(void)
 void __memtracker_free_sig(int dummy)
 {
     (void)dummy;
-    __bread_panic("SIGINT caught, now exiting");
+    __bread_panic("some SIG caught, now exiting...\n");
 }
 
 void bread_parser_set_program_name(const char *name)
@@ -634,6 +635,7 @@ size_t __bread_parse_opt_args(ArgPtr x, size_t offset, size_t argc, char **argv)
         {
             break;
         }
+
         switch (x->arg_type_list[i - 1])
         {
         case BREAD_I64:
@@ -664,8 +666,8 @@ size_t __bread_parse_opt_args(ArgPtr x, size_t offset, size_t argc, char **argv)
                 continue;
             }
 
-            x->args[i - 1]  = &res;
-            args_parsed    += 1;
+            ((long *)x->args[i - 1])[0]  = res;
+            args_parsed                 += 1;
             break;
         }
         case BREAD_U64:
@@ -695,8 +697,8 @@ size_t __bread_parse_opt_args(ArgPtr x, size_t offset, size_t argc, char **argv)
                               argv[offset], argv[offset + i]);
             }
 
-            x->args[i - 1]  = &res;
-            args_parsed    += 1;
+            ((unsigned long *)x->args[i - 1])[0]  = res;
+            args_parsed                          += 1;
             break;
         }
         case BREAD_CHAR:
@@ -730,7 +732,7 @@ void bread_print_help(int exit_code, char **argv)
                                 ? author_name
                                 : "Forgot to set my name in this "
                                   "(argparser is made by croisen)");
-    printf("If faced with any problems contact '%s'\n",
+    printf("If faced with any problems contact <<%s>>\n",
            (author_email != NULL)
                ? author_email
                : "croisen the one who made the argparser (jk)");

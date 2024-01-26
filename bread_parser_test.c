@@ -4,6 +4,10 @@
 
 int main(int argc, char **argv)
 {
+    bread_parser_set_program_name("bread_parser_test");
+    bread_parser_set_author_name("croisen");
+    bread_parser_set_author_email("andrewjames.git.gan@gmail.com");
+
     bread_parser_add_option('o', "option", 0);
     bread_parser_add_descrp('o', "Some option");
 
@@ -26,16 +30,19 @@ int main(int argc, char **argv)
     }
 
     void **problem_num_args = bread_parser_get_all_args('p');
-
-    for (size_t i = 0; i < 3; i += 1)
+    if (problem_num_args != NULL)
     {
-        printf("Problem args ptr #%lu %p\n", i + 1, problem_num_args[i]);
-    }
+        for (size_t i = 0; i < 3; i += 1)
+        {
+            printf("Problem args ptr #%lu %p\n", i + 1, problem_num_args[i]);
+        }
 
-    printf("Problem args ptr #%lu %ld\n", 1L, *(long *)problem_num_args[0]);
-    printf("Problem args ptr #%lu %s\n", 2L, (char *)problem_num_args[1]);
-    printf("Problem args ptr #%lu %lu\n", 3L,
-           *(unsigned long *)problem_num_args[2]);
+        printf("\n\n");
+        printf("Problem args ptr #%lu %ld\n", 1L, *(long *)problem_num_args[0]);
+        printf("Problem args ptr #%lu %s\n", 2L, (char *)problem_num_args[1]);
+        printf("Problem args ptr #%lu %lu\n", 3L,
+               *(unsigned long *)problem_num_args[2]);
+    }
 
     return 0;
 }
