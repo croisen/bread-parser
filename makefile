@@ -1,15 +1,23 @@
-CC				= gcc
+CC				= cc
 CFLAGS			= -Wall -Wextra -Wpedantic -Werror
 OPTS			= -O3 -g --std=gnu99
 
 EXE				= bread_parser_test
 MAIN			= bread_parser_test.c
 
-VALGRIND		:= $(shell command -v valgrind 2> /dev/null)
+VALGRIND		:= ${shell command -v valgrind 2> /dev/null}
 VALGRIND_ARGS	= --track-origins=yes --leak-check=full -s --show-leak-kinds=all
 
-default:
-	${CC} ${CFLAGS} ${OPTS} -o ${EXE} ${MAIN}
+
+.PHONY: all test
+
+all: clean ${EXE}
+
+${EXE}: ${MAIN}
+	${CC} ${CFLAGS} ${OPTS} -o $@ $?
+
+clean:
+	rm -f ${EXE}
 
 test:
 	${CC} ${CFLAGS} ${OPTS} -o ${EXE} ${MAIN}

@@ -748,8 +748,8 @@ void bread_parse(int argc, char **argv)
     bread_parser_add_option('?', "help", 0);
     bread_parser_add_descrp('?', "Prints this help option");
 
-    if (argv[1][1] == 'h' || argv[1][1] == '?' ||
-        strcmp(&argv[1][2], "help") == 0)
+    if (argc > 1 && (argv[1][1] == 'h' || argv[1][1] == '?' ||
+                     strcmp(&argv[1][2], "help") == 0))
     {
         bread_print_help(0, argv);
     }
