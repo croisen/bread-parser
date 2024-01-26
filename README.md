@@ -4,7 +4,17 @@ A bloated command line argument parser for c.
 I tried to make my own command line argument parser for c, but you only need the
 header. Very wip
 
-# Usage
+## Todo
+
+-   [x] Be able to create command line opts
+-   [x] Be able to have a long version of said opts
+-   [x] Be able to add descriptions to said opts
+-   [x] Parse argc and argv
+-   [x] Get pointers to the args of opts that have them
+-   [ ] Create a setter function that copies the opt arg to a variable
+-   [ ] After parsing, create a help opt using the current settings
+
+## Usage
 
 In a c file you want to add this, define CROI_LIB_BREAD_PARSER_IMPL_H only once
 and then include the bread_parser.h file, and hack away with your lsp and with
@@ -55,7 +65,7 @@ int main(int argc, char **argv)
 }
 ```
 
-# Compiling
+$# Compiling
 
 Well it's a header only library so no other c files needed to be compiled for
 this library to link to

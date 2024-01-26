@@ -55,34 +55,29 @@ typedef struct __arg *ArgPtr;
 
 typedef struct __darr_for_ptr DA[1];
 
-void bread_print_args(void);
-void bread_parse(int argc, char **argv);
+extern void bread_print_args(void);
+extern void bread_parse(int argc, char **argv);
 
-bool bread_parser_is_opt_used(char short_opt);
-void **bread_parser_get_all_args(char short_opt);
-void *bread_parser_get_arg(char short_opt, size_t index);
+extern bool bread_parser_is_opt_used(char short_opt);
+extern void **bread_parser_get_all_args(char short_opt);
+extern void *bread_parser_get_arg(char short_opt, size_t index);
 
-void bread_parser_add_option(char short_opt, char *long_opt, size_t group);
-void bread_parser_add_descrp(char short_opt, char *description);
-void bread_parser_opt_argmts(char short_opt, size_t arg_count, ...);
+extern void bread_parser_add_option(char short_opt, char *long_opt,
+                                    size_t group);
+extern void bread_parser_add_descrp(char short_opt, char *description);
+extern void bread_parser_opt_argmts(char short_opt, size_t arg_count, ...);
 
-void __memtracker_init(void);
-void __memtracker_free(void);
+extern void __memtracker_init(void);
+extern void __memtracker_free(void);
 
-void __bread_panic(const char *message, ...);
-void *__bread_calloc(size_t nmemb, size_t size);
-void *__bread_malloc(size_t size);
-void *__bread_realloc(void *ptr, size_t size);
+extern void __bread_panic(const char *message, ...);
+extern void *__bread_calloc(size_t nmemb, size_t size);
+extern void *__bread_malloc(size_t size);
+extern void *__bread_realloc(void *ptr, size_t size);
 
 #endif
 
 #ifdef CROI_LIB_BREAD_PARSER_IMPL_H
-
-enum __arg_len
-{
-    SHORT,
-    LONG,
-};
 
 DA some_args    = {0};
 DA alloced_ptrs = {0};
