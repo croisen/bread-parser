@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <signal.h>
 #include <string.h>
 
 enum __arg_type
@@ -55,7 +56,12 @@ typedef struct __arg *ArgPtr;
 
 typedef struct __darr_for_ptr DA[1];
 
+extern void bread_parser_set_program_name(const char *name);
+extern void bread_parser_set_author_name(const char *name);
+extern void bread_parser_set_author_email(const char *email);
+
 extern void bread_print_args(void);
+extern void bread_print_help(int exit_code, char **argv);
 extern void bread_parse(int argc, char **argv);
 
 extern bool bread_parser_is_opt_used(char short_opt);
@@ -68,23 +74,27 @@ extern void bread_parser_add_descrp(char short_opt, char *description);
 extern void bread_parser_opt_argmts(char short_opt, size_t arg_count, ...);
 
 extern void __memtracker_init(void);
-extern void __memtracker_free(void);
+extern void __memtracker_free_void(void);
+extern void __memtracker_free_sig(int dummy);
 
-extern void __bread_panic(const char *message, ...);
 extern void *__bread_calloc(size_t nmemb, size_t size);
 extern void *__bread_malloc(size_t size);
 extern void *__bread_realloc(void *ptr, size_t size);
+
+#define __bread_panic(message, ...)          \
+    fprintf(stderr, message, ##__VA_ARGS__); \
+    exit(EXIT_FAILURE)
 
 #endif
 
 #ifdef CROI_LIB_BREAD_PARSER_IMPL_H
 
-DA some_args    = {0};
-DA alloced_ptrs = {0};
+char *author_name  = NULL;
+char *author_email = NULL;
+char *program_name = NULL;
 
-#define bread_panic(message, ...)            \
-    fprintf(stderr, message, ##__VA_ARGS__); \
-    exit(EXIT_FAILURE)
+DA some_args       = {0};
+DA alloced_ptrs    = {0};
 
 int __bread_args_compare(const void *a, const void *b)
 {
@@ -94,9 +104,19 @@ int __bread_args_compare(const void *a, const void *b)
     return c->group_num - d->group_num;
 }
 
+int __memtracker_sort(const void *a, const void *b)
+{
+    void *c = *(void **)a;
+    void *d = *(void **)b;
+
+    return (size_t)d - (size_t)c;
+}
+
 void __memtracker_init(void)
 {
-    atexit(__memtracker_free);
+    atexit(__memtracker_free_void);
+    signal(SIGINT, __memtracker_free_sig);
+
     alloced_ptrs->init = true;
     alloced_ptrs->size = 4;
     alloced_ptrs->used = 0;
@@ -104,13 +124,13 @@ void __memtracker_init(void)
     alloced_ptrs->ptrs = calloc(alloced_ptrs->size, sizeof(void *));
     if (alloced_ptrs->ptrs == NULL)
     {
-        bread_panic(
+        __bread_panic(
             "Cannot initialize memory tracker for the bread parser, calloc "
             "returned NULL\n");
     }
 }
 
-void __memtracker_free(void)
+void __memtracker_free_void(void)
 {
     for (size_t i = 0; i < alloced_ptrs->used; i += 1)
     {
@@ -120,7 +140,46 @@ void __memtracker_free(void)
     free(alloced_ptrs->ptrs);
 }
 
-void *bread_calloc(size_t nmemb, size_t size)
+void __memtracker_free_sig(int dummy)
+{
+    (void)dummy;
+    __bread_panic("SIGINT caught, now exiting");
+}
+
+void bread_parser_set_program_name(const char *name)
+{
+    program_name = __bread_calloc(strlen(name) + 1, sizeof(char));
+    if (program_name == NULL)
+    {
+        __bread_panic("Unable to set program name to %s\n", name);
+    }
+
+    strcpy(program_name, name);
+}
+
+void bread_parser_set_author_name(const char *name)
+{
+    author_name = __bread_calloc(strlen(name) + 1, sizeof(char));
+    if (author_name == NULL)
+    {
+        __bread_panic("Unable to set author name to %s\n", name);
+    }
+
+    strcpy(author_name, name);
+}
+
+void bread_parser_set_author_email(const char *email)
+{
+    author_email = __bread_calloc(strlen(email) + 1, sizeof(char));
+    if (author_email == NULL)
+    {
+        __bread_panic("Unable to set author name to %s\n", email);
+    }
+
+    strcpy(author_email, email);
+}
+
+void *__bread_calloc(size_t nmemb, size_t size)
 {
     if (!alloced_ptrs->init)
     {
@@ -135,8 +194,8 @@ void *bread_calloc(size_t nmemb, size_t size)
         if (new_arr == NULL)
         {
             free(res);
-            bread_panic("Cannot track new memory given by bread_calloc, "
-                        "realloc return NULL\n");
+            __bread_panic("Cannot track new memory given by bread_calloc, "
+                          "realloc return NULL\n");
         }
 
         for (size_t i  = (alloced_ptrs->size - 1); i < (alloced_ptrs->size * 2);
@@ -158,7 +217,7 @@ void *bread_calloc(size_t nmemb, size_t size)
     return res;
 }
 
-void *bread_malloc(size_t size)
+void *__bread_malloc(size_t size)
 {
     if (!alloced_ptrs->init)
     {
@@ -173,8 +232,8 @@ void *bread_malloc(size_t size)
         if (new_arr == NULL)
         {
             free(res);
-            bread_panic("Cannot track new memory given by bread_malloc, "
-                        "realloc return NULL\n");
+            __bread_panic("Cannot track new memory given by bread_malloc, "
+                          "realloc return NULL\n");
         }
 
         for (size_t i  = (alloced_ptrs->size - 1); i < (alloced_ptrs->size * 2);
@@ -196,7 +255,7 @@ void *bread_malloc(size_t size)
     return res;
 }
 
-void *bread_realloc(void *ptr, size_t size)
+void *__bread_realloc(void *ptr, size_t size)
 {
     if (!alloced_ptrs->init)
     {
@@ -211,8 +270,8 @@ void *bread_realloc(void *ptr, size_t size)
         if (new_arr == NULL)
         {
             free(res);
-            bread_panic("Cannot track new memory given by bread_malloc, "
-                        "realloc return NULL\n");
+            __bread_panic("Cannot track new memory given by bread_malloc, "
+                          "realloc return NULL\n");
         }
 
         for (size_t i  = (alloced_ptrs->size - 1); i < (alloced_ptrs->size * 2);
@@ -239,6 +298,22 @@ void *bread_realloc(void *ptr, size_t size)
 
 bread_realloc_ret:
     return res;
+}
+
+void __bread_free(void *ptr)
+{
+    for (size_t i = 0; i < alloced_ptrs->used; i += 1)
+    {
+        if (alloced_ptrs->ptrs[i] == ptr)
+        {
+            alloced_ptrs->ptrs[i] = NULL;
+        }
+    }
+
+    qsort(alloced_ptrs->ptrs, alloced_ptrs->used, sizeof(void *),
+          __memtracker_sort);
+    free(ptr);
+    alloced_ptrs->used -= 1;
 }
 
 void bread_print_args(void)
@@ -323,11 +398,11 @@ void bread_parser_add_option(char short_opt, char *long_opt, size_t group)
         some_args->size = 4;
         some_args->used = 0;
 
-        some_args->ptrs = bread_calloc(some_args->size, sizeof(ArgPtr));
+        some_args->ptrs = __bread_calloc(some_args->size, sizeof(ArgPtr));
         if (some_args->ptrs == NULL)
         {
-            bread_panic("Cannot initialize memory for storing the "
-                        "arguments, calloc returned NULL\n");
+            __bread_panic("Cannot initialize memory for storing the "
+                          "arguments, calloc returned NULL\n");
         }
     }
 
@@ -342,12 +417,12 @@ void bread_parser_add_option(char short_opt, char *long_opt, size_t group)
 
     if (some_args->size <= (some_args->used + 1))
     {
-        void **new_arr = bread_realloc(some_args->ptrs,
-                                       sizeof(ArgPtr) * (some_args->size * 2));
+        void **new_arr = __bread_realloc(
+            some_args->ptrs, sizeof(ArgPtr) * (some_args->size * 2));
         if (new_arr == NULL)
         {
-            bread_panic("Cannot track new memory given by bread_malloc, "
-                        "realloc return NULL\n");
+            __bread_panic("Cannot track new memory given by bread_malloc, "
+                          "realloc return NULL\n");
         }
 
         for (size_t i  = (some_args->size - 1); i < (some_args->size * 2);
@@ -360,10 +435,10 @@ void bread_parser_add_option(char short_opt, char *long_opt, size_t group)
         some_args->size *= 2;
     }
 
-    some_args->ptrs[some_args->used] = bread_calloc(1, sizeof(struct __arg));
+    some_args->ptrs[some_args->used] = __bread_calloc(1, sizeof(struct __arg));
     if (((ArgPtr)some_args->ptrs[some_args->used]) == NULL)
     {
-        bread_panic(
+        __bread_panic(
             "Cannot initialize memory for storing the arguments, calloc "
             "returned NULL\n");
     }
@@ -379,11 +454,11 @@ void bread_parser_add_option(char short_opt, char *long_opt, size_t group)
     if (long_opt != NULL)
     {
         ((ArgPtr)some_args->ptrs[some_args->used])->long_opt =
-            bread_malloc(sizeof(char) * (strlen(long_opt) + 1));
+            __bread_malloc(sizeof(char) * (strlen(long_opt) + 1));
 
         if (((ArgPtr)some_args->ptrs[some_args->used])->long_opt == NULL)
         {
-            bread_panic(
+            __bread_panic(
                 "Cannot initialize memory for storing the arguments, malloc "
                 "returned NULL\n");
         }
@@ -406,11 +481,11 @@ void bread_parser_add_descrp(char short_opt, char *description)
         some_args->size = 4;
         some_args->used = 0;
 
-        some_args->ptrs = bread_calloc(some_args->size, sizeof(ArgPtr));
+        some_args->ptrs = __bread_calloc(some_args->size, sizeof(ArgPtr));
         if (some_args->ptrs == NULL)
         {
-            bread_panic("Cannot initialize memory for storing the "
-                        "arguments, calloc returned NULL\n");
+            __bread_panic("Cannot initialize memory for storing the "
+                          "arguments, calloc returned NULL\n");
         }
     }
 
@@ -420,14 +495,15 @@ void bread_parser_add_descrp(char short_opt, char *description)
         if (short_opt == x->short_opt && x->descr == NULL)
         {
             ((ArgPtr)some_args->ptrs[i])->descr =
-                bread_calloc((strlen(description) + 1), sizeof(char));
+                __bread_calloc((strlen(description) + 1), sizeof(char));
 
             if (((ArgPtr)some_args->ptrs[i])->descr == NULL)
             {
-                bread_panic("Cannot initialize memory for storing description "
-                            "for argument '%c', malloc "
-                            "returned NULL\n",
-                            short_opt);
+                __bread_panic(
+                    "Cannot initialize memory for storing description "
+                    "for argument '%c', malloc "
+                    "returned NULL\n",
+                    short_opt);
             }
 
             strcpy(((ArgPtr)some_args->ptrs[i])->descr, description);
@@ -446,11 +522,11 @@ void bread_parser_opt_argmts(char short_opt, size_t arg_count, ...)
         some_args->size = 4;
         some_args->used = 0;
 
-        some_args->ptrs = bread_calloc(some_args->size, sizeof(ArgPtr));
+        some_args->ptrs = __bread_calloc(some_args->size, sizeof(ArgPtr));
         if (some_args->ptrs == NULL)
         {
-            bread_panic("Cannot initialize memory for storing the "
-                        "arguments, calloc returned NULL\n");
+            __bread_panic("Cannot initialize memory for storing the "
+                          "arguments, calloc returned NULL\n");
         }
     }
 
@@ -473,11 +549,11 @@ void bread_parser_opt_argmts(char short_opt, size_t arg_count, ...)
     va_start(args, arg_count);
 
     x->arg_count     = arg_count;
-    x->arg_type_list = bread_malloc(sizeof(enum __arg_type) * arg_count);
+    x->arg_type_list = __bread_malloc(sizeof(enum __arg_type) * arg_count);
     if (x->arg_type_list == NULL)
     {
-        bread_panic("Cannot allocate memory for the arg types of option %c\n",
-                    short_opt);
+        __bread_panic("Cannot allocate memory for the arg types of option %c\n",
+                      short_opt);
     }
 
     for (size_t i = 0; i < arg_count; i += 1)
@@ -534,118 +610,148 @@ size_t __bread_parse_opt_args(ArgPtr x, size_t offset, size_t argc, char **argv)
     size_t args_parsed = 0;
     if (x == NULL)
     {
-        bread_panic("Unknown argument %s was passed\n", argv[offset]);
+        __bread_panic("Unknown argument %s was passed\n", argv[offset]);
     }
 
     x->used = true;
 
-    if (x->arg_count > 0)
+    if (x->arg_count == 0)
     {
-        x->args = bread_calloc(x->arg_count, sizeof(void *));
-        if (x->args == NULL)
+        return args_parsed;
+    }
+
+    x->args = __bread_calloc(x->arg_count, sizeof(void *));
+    if (x->args == NULL)
+    {
+        __bread_panic("Cannot allocate memory for the arguments "
+                      "of opt %s\n",
+                      argv[offset]);
+    }
+
+    for (size_t i = 1; i <= x->arg_count; i += 1)
+    {
+        if ((i + offset) >= argc)
         {
-            bread_panic("Cannot allocate memory for the arguments "
-                        "of opt %s\n",
-                        argv[offset]);
+            break;
         }
-
-        for (size_t i = 1; i <= x->arg_count; i += 1)
+        switch (x->arg_type_list[i - 1])
         {
-            if ((i + offset) >= argc)
+        case BREAD_I64:
+        {
+            char *idk;
+            long res = strtol(argv[offset + i], &idk, 10);
+            if ((res == 0) && (strcmp(argv[offset + i], "0") != 0))
             {
-                break;
+                fprintf(stderr,
+                        "Expecting a number argument for opt arg #%lu of %s, "
+                        "got \"%s\"\n",
+                        i, argv[offset], argv[offset + i]);
+                fprintf(
+                    stderr,
+                    "Expected arguments of opt %s in the order seen below\n",
+                    argv[offset]);
+                __bread_print_some_arg(x);
+                printf("\n\n");
+                bread_print_help(1, argv);
             }
-            switch (x->arg_type_list[i - 1])
+
+            x->args[i - 1] = __bread_malloc(sizeof(res));
+            if (x->args[i - 1] == NULL)
             {
-            case BREAD_I64:
+                __bread_panic("Cannot allocate memory for the argument "
+                              "of opt %s which is %s\n",
+                              argv[offset], argv[offset + i]);
+                continue;
+            }
+
+            x->args[i - 1]  = &res;
+            args_parsed    += 1;
+            break;
+        }
+        case BREAD_U64:
+        {
+            char *idk;
+            unsigned long res = strtoul(argv[offset + i], &idk, 10);
+            if ((res == 0) && (strcmp(argv[offset + i], "0") != 0))
             {
-                char *idk;
-                long res = strtol(argv[offset + i], &idk, 10);
-                if ((res == 0) && (strcmp(argv[offset + i], "0") != 0))
-                {
-                    fprintf(stderr,
-                            "Expecting a number argument for "
-                            "opt arg #%lu of %s, got \"%s\"\n",
-                            i, argv[offset], argv[offset + i]);
-                    fprintf(stderr,
-                            "Expected arguments of opt %s in the order seen "
-                            "below\n",
-                            argv[offset]);
-                    __bread_print_some_arg(x);
-                    bread_panic("EXIT\n");
-                }
-
-                x->args[i - 1] = bread_malloc(sizeof(res));
-                if (x->args[i - 1] == NULL)
-                {
-                    bread_panic("Cannot allocate memory for the argument "
-                                "of opt %s which is %s\n",
-                                argv[offset], argv[offset + i]);
-                    fprintf(stderr,
-                            "Expected arguments of opt %s in the order seen "
-                            "below\n",
-                            argv[offset]);
-                    __bread_print_some_arg(x);
-                    continue;
-                }
-
-                x->args[i - 1]  = &res;
-                args_parsed    += 1;
-                break;
+                fprintf(stderr,
+                        "Expecting an unsigned number argument for "
+                        "opt arg #%lu of %s, got \"%s\"\n",
+                        i, argv[offset], argv[offset + i]);
+                fprintf(stderr,
+                        "Expected arguments of opt %s in the order seen "
+                        "below\n",
+                        argv[offset]);
+                __bread_print_some_arg(x);
+                printf("\n\n");
+                bread_print_help(1, argv);
             }
-            case BREAD_U64:
+
+            x->args[i - 1] = __bread_malloc(sizeof(res));
+            if (x->args[i - 1] == NULL)
             {
-                char *idk;
-                unsigned long res = strtoul(argv[offset + i], &idk, 10);
-                if ((res == 0) && (strcmp(argv[offset + i], "0") != 0))
-                {
-                    bread_panic("Expecting an unsigned number argument "
-                                "for opt arg #%lu of %s, got \"%s\"\n",
-                                i, argv[offset], argv[offset + i]);
-                    fprintf(stderr,
-                            "Expected arguments of opt %s in the order seen "
-                            "below\n",
-                            argv[offset]);
-                    __bread_print_some_arg(x);
-                    bread_panic("EXIT\n");
-                }
-
-                x->args[i - 1] = bread_malloc(sizeof(res));
-                if (x->args[i - 1] == NULL)
-                {
-                    bread_panic("Cannot allocate memory for the argument "
-                                "of opt %s which is %s\n",
-                                argv[offset], argv[offset + i]);
-                }
-
-                x->args[i - 1]  = &res;
-                args_parsed    += 1;
-                break;
+                __bread_panic("Cannot allocate memory for the argument "
+                              "of opt %s which is %s\n",
+                              argv[offset], argv[offset + i]);
             }
-            case BREAD_CHAR:
+
+            x->args[i - 1]  = &res;
+            args_parsed    += 1;
+            break;
+        }
+        case BREAD_CHAR:
+        {
+            x->args[i - 1] =
+                __bread_malloc((strlen(argv[offset + i]) + 1) * sizeof(char));
+            if (x->args[i - 1] == NULL)
             {
-                x->args[i - 1] =
-                    bread_malloc((strlen(argv[offset + i]) + 1) * sizeof(char));
-                if (x->args[i - 1] == NULL)
-                {
-                    bread_panic("Cannot allocate memory for the argument "
-                                "of opt %s which is %s\n",
-                                argv[offset], argv[offset + i]);
-                }
+                __bread_panic("Cannot allocate memory for the argument "
+                              "of opt %s which is %s\n",
+                              argv[offset], argv[offset + i]);
+            }
 
-                strcpy(x->args[i - 1], argv[offset + i]);
-                args_parsed += 1;
-                break;
-            }
-            }
+            strcpy(x->args[i - 1], argv[offset + i]);
+            args_parsed += 1;
+            break;
+        }
         }
     }
 
     return args_parsed;
 }
 
+void bread_print_help(int exit_code, char **argv)
+{
+    printf("Program name: %s\n",
+           (program_name != NULL) ? program_name : argv[0]);
+    bread_print_args();
+
+    printf("Made by: %s\n", (author_name != NULL)
+                                ? author_name
+                                : "Forgot to set my name in this "
+                                  "(argparser is made by croisen)");
+    printf("If faced with any problems contact '%s'\n",
+           (author_email != NULL)
+               ? author_email
+               : "croisen the one who made the argparser (jk)");
+
+    exit(exit_code);
+}
+
 void bread_parse(int argc, char **argv)
 {
+    bread_parser_add_option('h', "help", 0);
+    bread_parser_add_descrp('h', "Prints this help option");
+
+    bread_parser_add_option('?', "help", 0);
+    bread_parser_add_descrp('?', "Prints this help option");
+
+    if (argv[1][1] == 'h' || argv[1][1] == '?' ||
+        strcmp(&argv[1][2], "help") == 0)
+    {
+        bread_print_help(0, argv);
+    }
+
     for (int i = 1; i < argc; i += 1)
     {
         ArgPtr x           = NULL;

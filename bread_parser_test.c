@@ -14,7 +14,6 @@ int main(int argc, char **argv)
     bread_parser_add_descrp('p', "Some problem num");
     bread_parser_opt_argmts('p', 3, BREAD_I64, BREAD_CHAR, BREAD_U64);
 
-    bread_print_args();
     bread_parse(argc, argv);
 
     if (bread_parser_is_opt_used('o'))
@@ -27,6 +26,16 @@ int main(int argc, char **argv)
     }
 
     void **problem_num_args = bread_parser_get_all_args('p');
-    (void)problem_num_args;
+
+    for (size_t i = 0; i < 3; i += 1)
+    {
+        printf("Problem args ptr #%lu %p\n", i + 1, problem_num_args[i]);
+    }
+
+    printf("Problem args ptr #%lu %ld\n", 1L, *(long *)problem_num_args[0]);
+    printf("Problem args ptr #%lu %s\n", 2L, (char *)problem_num_args[1]);
+    printf("Problem args ptr #%lu %lu\n", 3L,
+           *(unsigned long *)problem_num_args[2]);
+
     return 0;
 }

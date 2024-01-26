@@ -9,8 +9,9 @@ header. Very wip
 -   [x] Be able to create command line opts
 -   [x] Be able to have a long version of said opts
 -   [x] Be able to add descriptions to said opts
--   [x] Parse argc and argv
--   [x] Get pointers to the args of opts that have them
+-   [x] Parse argc and argv (incorrectly)
+-   [ ] Parse argc and argv (correctly)
+-   [ ] Get pointers to the args of opts that have them
 -   [ ] Create a setter function that copies the opt arg to a variable
 -   [ ] After parsing, create a help opt using the current settings
 
