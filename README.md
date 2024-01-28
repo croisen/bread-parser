@@ -12,8 +12,17 @@ header. Very wip
 -   [x] Parse argc and argv (incorrectly)
 -   [x] Parse argc and argv (correctly) (I think I did it correctly now)
 -   [x] Get pointers to the args of opts that have them
--   [ ] Create a setter function that copies the opt arg to a variable
 -   [x] After parsing, create a help opt using the current settings
+
+-   [ ] Be able to parse how the arguments are shown in the help section like
+        the stuff shown below (what the hell am I doing)
+
+```bash
+./bread_parser_test --some-opt='{1, "some str", -2}'
+./bread_parser_test --some-opt=\{1, "some str", -2\}
+./bread_parser_test --some-opt='{ 1, "some str", -2 }'
+./bread_parser_test --some-opt=\{ 1, "some str", -2 \}
+```
 
 ## Usage
 
@@ -66,7 +75,7 @@ int main(int argc, char **argv)
 }
 ```
 
-$# Compiling
+## Compiling
 
 Well it's a header only library so no other c files needed to be compiled for
 this library to link to
