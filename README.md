@@ -13,7 +13,6 @@ header. Very wip
 -   [x] Parse argc and argv (correctly) (I think I did it correctly now)
 -   [x] Get pointers to the args of opts that have them
 -   [x] After parsing, create a help opt using the current settings
-
 -   [ ] Be able to parse how the arguments are shown in the help section like
         the stuff shown below (what the hell am I doing)
 
