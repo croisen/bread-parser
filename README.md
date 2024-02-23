@@ -14,7 +14,7 @@ header. Very wip
 -   [x] Get pointers to the args of opts that have them
 -   [x] After parsing, create a help opt using the current settings
 -   [ ] Be able to parse how the arguments are shown in the help section like
-        the stuff shown below (what the hell am I doing)
+        the stuff shown below (seems like a bad idea so no)
 
 ```bash
 ./bread_parser_test --some-opt='{1, "some str", -2}'
@@ -22,6 +22,8 @@ header. Very wip
 ./bread_parser_test --some-opt='{ 1, "some str", -2 }'
 ./bread_parser_test --some-opt=\{ 1, "some str", -2 \}
 ```
+
+-   [ ] Add a list of args that was not received by the opts defined?
 
 ## Usage
 

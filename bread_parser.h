@@ -11,7 +11,6 @@
 #define CROI_LIB_BREAD_PARSER_H
 
 #include <inttypes.h>
-#include <math.h>
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -73,10 +72,10 @@ extern void bread_parser_add_option(char short_opt, char *long_opt,
 extern void bread_parser_add_descrp(char short_opt, char *description);
 extern void bread_parser_opt_argmts(char short_opt, uint64_t arg_count, ...);
 
-extern void __bread_free(void *ptr);
-extern void *__bread_calloc(uint64_t nmemb, uint64_t size);
-extern void *__bread_malloc(uint64_t size);
-extern void *__bread_realloc(void *ptr, uint64_t size);
+extern void __bread_parser_free(void *ptr);
+extern void *__bread_parser_calloc(uint64_t nmemb, uint64_t size);
+extern void *__bread_parser_malloc(uint64_t size);
+extern void *__bread_parser_realloc(void *ptr, uint64_t size);
 
 #define __bread_panic(message, ...)          \
     fprintf(stderr, message, ##__VA_ARGS__); \
@@ -86,17 +85,17 @@ extern void *__bread_realloc(void *ptr, uint64_t size);
 
 #ifdef CROI_LIB_BREAD_PARSER_IMPL_H
 
-char *author_name  = NULL;
-char *author_email = NULL;
-char *program_name = NULL;
+char *author_name            = NULL;
+char *author_email           = NULL;
+char *program_name           = NULL;
 
-DA some_args       = {0};
-DA alloced_ptrs    = {0};
+DA some_args                 = {0};
+DA bread_parser_alloced_ptrs = {0};
 
-extern int __memtracker_sort(const void *a, const void *b);
-extern void __memtracker_init(void);
-extern void __memtracker_free_void(void);
-extern void __memtracker_free_sig(int dummy);
+extern int __bread_parser_memtracker_sort(const void *a, const void *b);
+extern void __bread_parser_memtracker_init(void);
+extern void __bread_parser_memtracker_free_void(void);
+extern void __bread_parser_memtracker_free_sig(int dummy);
 
 int __bread_args_compare(const void *a, const void *b)
 {
@@ -124,7 +123,7 @@ int __bread_args_compare(const void *a, const void *b)
     return 0;
 }
 
-int __memtracker_sort(const void *a, const void *b)
+int __bread_parser_memtracker_sort(const void *a, const void *b)
 {
     void *c = *(void **)a;
     void *d = *(void **)b;
@@ -133,18 +132,19 @@ int __memtracker_sort(const void *a, const void *b)
     return (uint64_t)d - (uint64_t)c;
 }
 
-void __memtracker_init(void)
+void __bread_parser_memtracker_init(void)
 {
-    atexit(__memtracker_free_void);
-    signal(SIGINT, __memtracker_free_sig);
-    signal(SIGSEGV, __memtracker_free_sig);
+    atexit(__bread_parser_memtracker_free_void);
+    signal(SIGINT, __bread_parser_memtracker_free_sig);
+    signal(SIGSEGV, __bread_parser_memtracker_free_sig);
 
-    alloced_ptrs->init = true;
-    alloced_ptrs->size = 4;
-    alloced_ptrs->used = 0;
+    bread_parser_alloced_ptrs->init = true;
+    bread_parser_alloced_ptrs->size = 4;
+    bread_parser_alloced_ptrs->used = 0;
 
-    alloced_ptrs->ptrs = calloc(alloced_ptrs->size, sizeof(void *));
-    if (alloced_ptrs->ptrs == NULL)
+    bread_parser_alloced_ptrs->ptrs =
+        calloc(bread_parser_alloced_ptrs->size, sizeof(void *));
+    if (bread_parser_alloced_ptrs->ptrs == NULL)
     {
         __bread_panic(
             "Cannot initialize memory tracker for the bread parser, calloc "
@@ -152,30 +152,32 @@ void __memtracker_init(void)
     }
 }
 
-void __memtracker_free_void(void)
+void __bread_parser_memtracker_free_void(void)
 {
-    for (uint64_t i = 0; i < alloced_ptrs->size; i += 1)
+    for (uint64_t i = 0; i < bread_parser_alloced_ptrs->size; i += 1)
     {
-#ifdef __BCROI_PARSER_DEBUG
-        printf("Freeing alloced_ptrs: %p\n", alloced_ptrs->ptrs[i]);
+#ifdef ___BREAD_PARSER_DEBUG
+        printf("Freeing bread_parser_alloced_ptrs: 0x%016" PRIx64 "\n",
+               (uint64_t)bread_parser_alloced_ptrs->ptrs[i]);
 #endif
-        free(alloced_ptrs->ptrs[i]);
+        free(bread_parser_alloced_ptrs->ptrs[i]);
     }
 
-#ifdef __BCROI_PARSER_DEBUG
-    printf("Freeing alloced_ptrs itself: %p\n", (void *)alloced_ptrs->ptrs);
+#ifdef ___BREAD_PARSER_DEBUG
+    printf("Freeing bread_parser_alloced_ptrs: 0x%016" PRIx64 "\n",
+           (uint64_t)bread_parser_alloced_ptrs->ptrs);
 #endif
-    free(alloced_ptrs->ptrs);
+    free(bread_parser_alloced_ptrs->ptrs);
 }
 
-void __memtracker_free_sig(int dummy)
+void __bread_parser_memtracker_free_sig(int dummy)
 {
     __bread_panic("Signal %s caught, now exiting...\n", strsignal(dummy));
 }
 
 void bread_parser_set_program_name(const char *name)
 {
-    program_name = __bread_calloc(strlen(name) + 1, sizeof(char));
+    program_name = __bread_parser_calloc(strlen(name) + 1, sizeof(char));
     if (program_name == NULL)
     {
         __bread_panic("Unable to set program name to %s\n", name);
@@ -186,7 +188,7 @@ void bread_parser_set_program_name(const char *name)
 
 void bread_parser_set_author_name(const char *name)
 {
-    author_name = __bread_calloc(strlen(name) + 1, sizeof(char));
+    author_name = __bread_parser_calloc(strlen(name) + 1, sizeof(char));
     if (author_name == NULL)
     {
         __bread_panic("Unable to set author name to %s\n", name);
@@ -197,7 +199,7 @@ void bread_parser_set_author_name(const char *name)
 
 void bread_parser_set_author_email(const char *email)
 {
-    author_email = __bread_calloc(strlen(email) + 1, sizeof(char));
+    author_email = __bread_parser_calloc(strlen(email) + 1, sizeof(char));
     if (author_email == NULL)
     {
         __bread_panic("Unable to set author name to %s\n", email);
@@ -206,18 +208,20 @@ void bread_parser_set_author_email(const char *email)
     strcpy(author_email, email);
 }
 
-void *__bread_calloc(uint64_t nmemb, uint64_t size)
+void *__bread_parser_calloc(uint64_t nmemb, uint64_t size)
 {
-    if (!alloced_ptrs->init)
+    if (!bread_parser_alloced_ptrs->init)
     {
-        __memtracker_init();
+        __bread_parser_memtracker_init();
     }
 
     void *res = calloc(nmemb, size);
-    if (alloced_ptrs->size <= (alloced_ptrs->used + 1))
+    if (bread_parser_alloced_ptrs->size <=
+        (bread_parser_alloced_ptrs->used + 1))
     {
-        void **new_arr = realloc(alloced_ptrs->ptrs,
-                                 sizeof(void *) * (alloced_ptrs->size * 2));
+        void **new_arr =
+            realloc(bread_parser_alloced_ptrs->ptrs,
+                    sizeof(void *) * (bread_parser_alloced_ptrs->size * 2));
         if (new_arr == NULL)
         {
             free(res);
@@ -225,37 +229,39 @@ void *__bread_calloc(uint64_t nmemb, uint64_t size)
                           "realloc return NULL\n");
         }
 
-        for (uint64_t i                       = (alloced_ptrs->size - 1);
-             i < (alloced_ptrs->size * 2); i += 1)
+        for (uint64_t i = (bread_parser_alloced_ptrs->size - 1);
+             i < (bread_parser_alloced_ptrs->size * 2); i += 1)
         {
             new_arr[i] = NULL;
         }
 
-        alloced_ptrs->ptrs  = new_arr;
-        alloced_ptrs->size *= 2;
+        bread_parser_alloced_ptrs->ptrs  = new_arr;
+        bread_parser_alloced_ptrs->size *= 2;
     }
 
     if (res != NULL)
     {
-        alloced_ptrs->ptrs[alloced_ptrs->used]  = res;
-        alloced_ptrs->used                     += 1;
+        bread_parser_alloced_ptrs->ptrs[bread_parser_alloced_ptrs->used]  = res;
+        bread_parser_alloced_ptrs->used                                  += 1;
     }
 
     return res;
 }
 
-void *__bread_malloc(uint64_t size)
+void *__bread_parser_malloc(uint64_t size)
 {
-    if (!alloced_ptrs->init)
+    if (!bread_parser_alloced_ptrs->init)
     {
-        __memtracker_init();
+        __bread_parser_memtracker_init();
     }
 
     void *res = malloc(size);
-    if (alloced_ptrs->size <= (alloced_ptrs->used + 1))
+    if (bread_parser_alloced_ptrs->size <=
+        (bread_parser_alloced_ptrs->used + 1))
     {
-        void **new_arr = realloc(alloced_ptrs->ptrs,
-                                 sizeof(void *) * (alloced_ptrs->size * 2));
+        void **new_arr =
+            realloc(bread_parser_alloced_ptrs->ptrs,
+                    sizeof(void *) * (bread_parser_alloced_ptrs->size * 2));
         if (new_arr == NULL)
         {
             free(res);
@@ -263,86 +269,89 @@ void *__bread_malloc(uint64_t size)
                           "realloc return NULL\n");
         }
 
-        for (uint64_t i                       = (alloced_ptrs->size - 1);
-             i < (alloced_ptrs->size * 2); i += 1)
+        for (uint64_t i = (bread_parser_alloced_ptrs->size - 1);
+             i < (bread_parser_alloced_ptrs->size * 2); i += 1)
         {
             new_arr[i] = NULL;
         }
 
-        alloced_ptrs->ptrs  = new_arr;
-        alloced_ptrs->size *= 2;
+        bread_parser_alloced_ptrs->ptrs  = new_arr;
+        bread_parser_alloced_ptrs->size *= 2;
     }
 
     if (res != NULL)
     {
-        alloced_ptrs->ptrs[alloced_ptrs->used]  = res;
-        alloced_ptrs->used                     += 1;
+        bread_parser_alloced_ptrs->ptrs[bread_parser_alloced_ptrs->used]  = res;
+        bread_parser_alloced_ptrs->used                                  += 1;
     }
 
     return res;
 }
 
-void *__bread_realloc(void *ptr, uint64_t size)
+void *__bread_parser_realloc(void *ptr, uint64_t size)
 {
-    if (!alloced_ptrs->init)
+    if (!bread_parser_alloced_ptrs->init)
     {
-        __memtracker_init();
+        __bread_parser_memtracker_init();
     }
 
     void *res = realloc(ptr, size);
-    if (alloced_ptrs->size <= (alloced_ptrs->used + 1))
+    if (bread_parser_alloced_ptrs->size <=
+        (bread_parser_alloced_ptrs->used + 1))
     {
-        void **new_arr = realloc(alloced_ptrs->ptrs,
-                                 sizeof(void *) * (alloced_ptrs->size * 2));
+        void **new_arr =
+            realloc(bread_parser_alloced_ptrs->ptrs,
+                    sizeof(void *) * (bread_parser_alloced_ptrs->size * 2));
         if (new_arr == NULL)
         {
             free(res);
-            __bread_panic("Cannot track new memory given by bread_malloc, "
+            __bread_panic("Cannot track new memory given by bread_realloc, "
                           "realloc return NULL\n");
         }
 
-        for (uint64_t i                       = (alloced_ptrs->size - 1);
-             i < (alloced_ptrs->size * 2); i += 1)
+        for (uint64_t i = (bread_parser_alloced_ptrs->size - 1);
+             i < (bread_parser_alloced_ptrs->size * 2); i += 1)
         {
             new_arr[i] = NULL;
         }
 
-        alloced_ptrs->ptrs  = new_arr;
-        alloced_ptrs->size *= 2;
+        bread_parser_alloced_ptrs->ptrs  = new_arr;
+        bread_parser_alloced_ptrs->size *= 2;
     }
 
-    for (uint64_t i = 0; i < alloced_ptrs->used; i += 1)
+    for (uint64_t i = 0; i < bread_parser_alloced_ptrs->used; i += 1)
     {
-        if (res != NULL && alloced_ptrs->ptrs[i] == ptr)
+        if (res != NULL && bread_parser_alloced_ptrs->ptrs[i] == ptr)
         {
-            alloced_ptrs->ptrs[i] = res;
+            bread_parser_alloced_ptrs->ptrs[i] = res;
             goto bread_realloc_ret;
         }
     }
 
-    alloced_ptrs->ptrs[alloced_ptrs->used]  = res;
-    alloced_ptrs->used                     += 1;
+    bread_parser_alloced_ptrs->ptrs[bread_parser_alloced_ptrs->used]  = res;
+    bread_parser_alloced_ptrs->used                                  += 1;
 
 bread_realloc_ret:
     return res;
 }
 
-void __bread_free(void *ptr)
+void __bread_parser_free(void *ptr)
 {
-    qsort(alloced_ptrs->ptrs, alloced_ptrs->used, sizeof(void *),
-          __memtracker_sort);
+    qsort(bread_parser_alloced_ptrs->ptrs, bread_parser_alloced_ptrs->used,
+          sizeof(void *), __bread_parser_memtracker_sort);
     uint64_t key = (uint64_t)ptr;
-    void **item  = bsearch(&key, alloced_ptrs->ptrs, alloced_ptrs->used,
-                           sizeof(void *), __memtracker_sort);
+    void **item  = bsearch(&key, bread_parser_alloced_ptrs->ptrs,
+                           bread_parser_alloced_ptrs->used, sizeof(void *),
+                           __bread_parser_memtracker_sort);
     if (item != NULL)
     {
         *item = NULL;
-        qsort(alloced_ptrs->ptrs, alloced_ptrs->used, sizeof(void *),
-              __memtracker_sort);
+        qsort(bread_parser_alloced_ptrs->ptrs, bread_parser_alloced_ptrs->used,
+              sizeof(void *), __bread_parser_memtracker_sort);
     }
 
     free(ptr);
-    alloced_ptrs->used -= 1;
+    bread_parser_alloced_ptrs->used -= 1;
 }
 
 // Prints the information about an argument via it's argptr
@@ -408,7 +417,7 @@ uint64_t __bread_parse_opt_args(ArgPtr x, uint64_t offset, uint64_t argc,
         return args_parsed;
     }
 
-    x->args = __bread_calloc(x->arg_count, sizeof(void *));
+    x->args = __bread_parser_calloc(x->arg_count, sizeof(void *));
     if (x->args == NULL)
     {
         __bread_panic("Cannot allocate memory for the arguments "
@@ -452,7 +461,7 @@ uint64_t __bread_parse_opt_args(ArgPtr x, uint64_t offset, uint64_t argc,
                 bread_print_help(1, argv);
             }
 
-            x->args[i - 1] = __bread_malloc(sizeof(res));
+            x->args[i - 1] = __bread_parser_malloc(sizeof(res));
             if (x->args[i - 1] == NULL)
             {
                 __bread_panic("Cannot allocate memory for the argument "
@@ -484,7 +493,7 @@ uint64_t __bread_parse_opt_args(ArgPtr x, uint64_t offset, uint64_t argc,
                 bread_print_help(1, argv);
             }
 
-            x->args[i - 1] = __bread_malloc(sizeof(res));
+            x->args[i - 1] = __bread_parser_malloc(sizeof(res));
             if (x->args[i - 1] == NULL)
             {
                 __bread_panic("Cannot allocate memory for the argument "
@@ -498,8 +507,8 @@ uint64_t __bread_parse_opt_args(ArgPtr x, uint64_t offset, uint64_t argc,
         }
         case BREAD_CHAR:
         {
-            x->args[i - 1] =
-                __bread_malloc((strlen(argv[offset + i]) + 1) * sizeof(char));
+            x->args[i - 1] = __bread_parser_malloc(
+                (strlen(argv[offset + i]) + 1) * sizeof(char));
             if (x->args[i - 1] == NULL)
             {
                 __bread_panic("Cannot allocate memory for the argument "
@@ -516,203 +525,6 @@ uint64_t __bread_parse_opt_args(ArgPtr x, uint64_t offset, uint64_t argc,
 
     return args_parsed;
 }
-
-void __bread_parser_opt_args_equals_one_arg(ArgPtr x, char *long_opt_with_arg)
-{
-    if (x->arg_count > 0)
-    {
-        x->args = __bread_calloc(x->arg_count, sizeof(void *));
-        if (x->args == NULL)
-        {
-            __bread_panic(
-                "Could not allocate memory for the arguments of opt --%s\n",
-                x->long_opt);
-        }
-    }
-    else
-    {
-        return;
-    }
-
-    uint64_t total_arg_len = strlen(long_opt_with_arg);
-    char *copy             = __bread_calloc(total_arg_len + 1, sizeof(char));
-    strcpy(copy, long_opt_with_arg);
-
-    char *where_first_brace = strtok(copy, "{");
-    where_first_brace       = strtok(NULL, ",");
-    if (*where_first_brace == ' ')
-    {
-        where_first_brace += 1;
-    }
-
-    char *current_arg = where_first_brace;
-    uint64_t arg_len  = 0;
-    x->used           = true;
-    for (uint64_t i = 0; i < x->arg_count; i += 1)
-    {
-        if ((i + 1) >= x->arg_count)
-        {
-            copy[total_arg_len - 1]     = '\0';
-            char *last_bits             = &copy[total_arg_len - 2];
-            char *partway_into_last_arg = strtok(NULL, ",");
-            current_arg                 = partway_into_last_arg -
-                          ((*partway_into_last_arg == ' ') ? 2 : 1);
-            arg_len = (uint64_t)last_bits - (uint64_t)partway_into_last_arg -
-                      ((*(partway_into_last_arg - 1) == ' ') ? 2 : 1) -
-                      (uint64_t)current_arg;
-        }
-        else
-        {
-            char *partway_into_next_arg = strtok(NULL, ",");
-            if (partway_into_next_arg == NULL)
-            {
-                fprintf(stderr,
-                        "Insufficient amount of args passed into opt --%s\n",
-                        x->long_opt);
-                fprintf(
-                    stderr,
-                    "Expected arguments of opt --%s in the order seen below\n",
-                    x->long_opt);
-                __bread_print_some_arg(x);
-                exit(EXIT_FAILURE);
-            }
-
-            current_arg = partway_into_next_arg -
-                          ((*partway_into_next_arg == ' ') ? 2 : 1);
-            arg_len = (uint64_t)partway_into_next_arg -
-                      ((*partway_into_next_arg == ' ') ? 2 : 1) -
-                      (uint64_t)current_arg;
-        }
-
-        char *alloced_current_arg = __bread_calloc(arg_len + 1, sizeof(char));
-        strncpy(alloced_current_arg, current_arg, arg_len);
-
-#ifdef __BCROI_PARSER_DEBUG
-        printf("alloced current: %s, len: %" PRIu64 "\n", alloced_current_arg,
-               arg_len);
-#endif
-
-        switch (x->arg_type_list[i])
-        {
-        case BREAD_I64:
-        {
-            char *idk;
-            unsigned long res = strtol(alloced_current_arg, &idk, 10);
-            if ((res == 0) && (strcmp(alloced_current_arg, "0") != 0))
-            {
-                fprintf(stderr,
-                        "Expecting a number argument for opt arg "
-                        "#%" PRIu64 " of --%s, got \"%s\"\n",
-                        i + 1, x->long_opt, alloced_current_arg);
-                fprintf(
-                    stderr,
-                    "Expected arguments of opt --%s in the order seen below\n",
-                    x->long_opt);
-                __bread_print_some_arg(x);
-                exit(EXIT_FAILURE);
-            }
-
-            x->args[i] = __bread_malloc(sizeof(res));
-            if (x->args[i] == NULL)
-            {
-                __bread_panic("Cannot allocate memory for the argument "
-                              "of opt %s which is %s\n",
-                              x->long_opt, alloced_current_arg);
-            }
-
-            *((int64_t *)x->args[i]) = res;
-            break;
-        }
-        case BREAD_U64:
-        {
-            char *idk;
-            unsigned long res = strtoul(alloced_current_arg, &idk, 10);
-            if ((res == 0) && (strcmp(alloced_current_arg, "0") != 0))
-            {
-                fprintf(stderr,
-                        "Expecting an unsigned number argument for opt arg "
-                        "#%" PRIu64 " of --%s, got \"%s\"\n",
-                        i + 1, x->long_opt, alloced_current_arg);
-                fprintf(
-                    stderr,
-                    "Expected arguments of opt --%s in the order seen below\n",
-                    x->long_opt);
-                __bread_print_some_arg(x);
-                exit(EXIT_FAILURE);
-            }
-
-            x->args[i] = __bread_malloc(sizeof(res));
-            if (x->args[i] == NULL)
-            {
-                __bread_panic("Cannot allocate memory for the argument "
-                              "of opt %s which is %s\n",
-                              x->long_opt, alloced_current_arg);
-            }
-
-            *((uint64_t *)x->args[i]) = res;
-            break;
-        }
-        case BREAD_CHAR:
-        {
-            x->args[i] = __bread_malloc((arg_len + 1) * sizeof(char));
-            if (x->args[i] == NULL)
-            {
-                __bread_panic("Cannot allocate memory for the argument "
-                              "of opt %s which is %s\n",
-                              x->long_opt, alloced_current_arg);
-            }
-
-            strcpy(x->args[i], alloced_current_arg);
-            break;
-        }
-        }
-
-        __bread_free(alloced_current_arg);
-    }
-
-    __bread_free(copy);
-}
-
-// void __bread_parser_opt_args_equals_mul_arg(ArgPtr x, uint64_t offset, int
-// argc, char **argv)
-//{
-// uint64_t arg_len = strlen(long_opt_witharg);
-// char *copy       = __bread_calloc(arg_len + 1, sizeof(char));
-// strcpy(copy, long_opt_arg);
-
-// char *where_equals = strtok(copy, "=");
-// char *where_brace  = strtok(copy, "{");
-
-//// TODO: Be able to do --some-opt='{1, "some str", -1}'
-//// --some-opt='{ 1, "some str", -79 }'
-//// and even absurdly --some-opt=\{ 1, "some_opt", -2 \}
-// for (uint64_t i = 0; i < x->arg_count; i += 1)
-//{
-// switch (x->arg_type_list[i])
-//{
-// case BREAD_I64:
-//{
-// break;
-//}
-// case BREAD_U64:
-//{
-// break;
-//}
-// case BREAD_CHAR:
-//{
-// break;
-//}
-//}
-
-// if ((i + 1) >= x->arg_count)
-//{
-// continue;
-//}
-// else
-//{
-//}
-//}
-//}
 
 void bread_print_args(void)
 {
@@ -806,7 +618,8 @@ void bread_parser_add_option(char short_opt, char *long_opt, uint64_t group)
         some_args->size = 4;
         some_args->used = 0;
 
-        some_args->ptrs = __bread_calloc(some_args->size, sizeof(ArgPtr));
+        some_args->ptrs =
+            __bread_parser_calloc(some_args->size, sizeof(ArgPtr));
         if (some_args->ptrs == NULL)
         {
             __bread_panic("Cannot initialize memory for storing the "
@@ -825,7 +638,7 @@ void bread_parser_add_option(char short_opt, char *long_opt, uint64_t group)
 
     if (some_args->size <= (some_args->used + 1))
     {
-        void **new_arr = __bread_realloc(
+        void **new_arr = __bread_parser_realloc(
             some_args->ptrs, sizeof(ArgPtr) * (some_args->size * 2));
         if (new_arr == NULL)
         {
@@ -843,7 +656,8 @@ void bread_parser_add_option(char short_opt, char *long_opt, uint64_t group)
         some_args->size *= 2;
     }
 
-    some_args->ptrs[some_args->used] = __bread_calloc(1, sizeof(struct __arg));
+    some_args->ptrs[some_args->used] =
+        __bread_parser_calloc(1, sizeof(struct __arg));
     if (((ArgPtr)some_args->ptrs[some_args->used]) == NULL)
     {
         __bread_panic(
@@ -862,7 +676,7 @@ void bread_parser_add_option(char short_opt, char *long_opt, uint64_t group)
     if (long_opt != NULL)
     {
         ((ArgPtr)some_args->ptrs[some_args->used])->long_opt =
-            __bread_malloc(sizeof(char) * (strlen(long_opt) + 1));
+            __bread_parser_malloc(sizeof(char) * (strlen(long_opt) + 1));
 
         if (((ArgPtr)some_args->ptrs[some_args->used])->long_opt == NULL)
         {
@@ -889,7 +703,8 @@ void bread_parser_add_descrp(char short_opt, char *description)
         some_args->size = 4;
         some_args->used = 0;
 
-        some_args->ptrs = __bread_calloc(some_args->size, sizeof(ArgPtr));
+        some_args->ptrs =
+            __bread_parser_calloc(some_args->size, sizeof(ArgPtr));
         if (some_args->ptrs == NULL)
         {
             __bread_panic("Cannot initialize memory for storing the "
@@ -903,7 +718,7 @@ void bread_parser_add_descrp(char short_opt, char *description)
         if (short_opt == x->short_opt && x->descr == NULL)
         {
             ((ArgPtr)some_args->ptrs[i])->descr =
-                __bread_calloc((strlen(description) + 1), sizeof(char));
+                __bread_parser_calloc((strlen(description) + 1), sizeof(char));
 
             if (((ArgPtr)some_args->ptrs[i])->descr == NULL)
             {
@@ -932,7 +747,8 @@ void bread_parser_opt_argmts(char short_opt, uint64_t arg_count, ...)
         some_args->size = 4;
         some_args->used = 0;
 
-        some_args->ptrs = __bread_calloc(some_args->size, sizeof(ArgPtr));
+        some_args->ptrs =
+            __bread_parser_calloc(some_args->size, sizeof(ArgPtr));
         if (some_args->ptrs == NULL)
         {
             __bread_panic("Cannot initialize memory for storing the "
@@ -958,8 +774,9 @@ void bread_parser_opt_argmts(char short_opt, uint64_t arg_count, ...)
     va_list args;
     va_start(args, arg_count);
 
-    x->arg_count     = arg_count;
-    x->arg_type_list = __bread_malloc(sizeof(enum __arg_type) * arg_count);
+    x->arg_count = arg_count;
+    x->arg_type_list =
+        __bread_parser_malloc(sizeof(enum __arg_type) * arg_count);
     if (x->arg_type_list == NULL)
     {
         __bread_panic("Cannot allocate memory for the arg types of option %c\n",
@@ -1011,9 +828,8 @@ void bread_parse(int argc, char **argv)
 
     for (int i = 1; i < argc; i += 1)
     {
-        ArgPtr x             = NULL;
-        char *equals_used    = strtok(argv[i], "=");
-        uint64_t args_parsed = 0;
+        ArgPtr x          = NULL;
+        char *equals_used = strtok(argv[i], "=");
 
         if (argv[i][0] != '-')
         {
@@ -1046,25 +862,11 @@ void bread_parse(int argc, char **argv)
 
         if (equals_used != NULL)
         {
-            uint64_t ptr_diff = (uint64_t)equals_used - (uint64_t)argv[i] - 1;
-            argv[i][ptr_diff] = '=';
-            if (argv[i][strlen(argv[i]) - 1] == '}')
-            {
-                __bread_parser_opt_args_equals_one_arg(x, argv[i]);
-            }
-            else
-            {
-                // args_parsed =
-                //__bread_parser_opt_args_equals_mul_arg(x, i, argc, argv);
-            }
-        }
-        else
-        {
-
-            args_parsed = __bread_parse_opt_args(x, i, argc, argv);
+            __bread_panic("Using equals to pass an arg to any opts via the "
+                          "bread parser is not supported :(\n");
         }
 
-        i += args_parsed;
+        i += __bread_parse_opt_args(x, i, argc, argv);
     }
 }
 
