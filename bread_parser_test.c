@@ -11,6 +11,7 @@ int main(void)
 
     bParserAddOpts('c', NULL, 0);
     bParserAddDesc('c', NULL, "Charlie description or something");
+    bParserAddArgs('c', NULL, 3, U64BP, U32BP, ANYBP);
 
     // Should trigger a warning?
     bParserAddDesc(BParserNoShortOpt, NULL, "I trigger an error bud");

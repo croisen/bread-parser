@@ -402,7 +402,7 @@ extern "C"
         // 4 (starting) + 2 (dash and letter) + 4 (space) + [2 + longestOptLen -
         // currentOptLen] (get to the end of --longOpt)
         uint64_t longestOptLen = bParserFindLongestOptLen();
-        // uint64_t lengthToDescr = 12 + longestOptLen;
+        uint64_t lengthToDescr = 12 + longestOptLen;
         qsort(bParserOptDynArr.opts, bParserOptDynArr.used, sizeof(BParserOpt),
               bParserCompareOpts);
 
@@ -438,6 +438,11 @@ extern "C"
             else
             {
                 printf("\n");
+            }
+
+            if (opt.argCount != 0)
+            {
+                // TODO: Add args to printOpts
             }
         }
     }
