@@ -400,9 +400,9 @@ extern "C"
         //     -v    --verbose    Makes this program more verbose
         //                    = possible,args
         // 4 (starting) + 2 (dash and letter) + 4 (space) + [2 + longestOptLen -
-        // currentOptLen] (get to the end of --longOpt)
+        // currentOptLen] (get to the end of --longOpt) + 4 (space) description
         uint64_t longestOptLen = bParserFindLongestOptLen();
-        uint64_t lengthToDescr = 12 + longestOptLen;
+        int64_t lengthToDescr  = 16 + longestOptLen;
         qsort(bParserOptDynArr.opts, bParserOptDynArr.used, sizeof(BParserOpt),
               bParserCompareOpts);
 
@@ -433,7 +433,39 @@ extern "C"
                 {
                     printf(" ");
                 }
-                printf("%s\n", opt.description);
+
+                uint64_t currentIndex   = 0;
+                uint64_t latestIndex    = lengthToDescr;
+                uint64_t descriptionLen = (uint64_t)strlen(opt.description);
+                while (currentIndex < descriptionLen)
+                {
+                    if (currentIndex < descriptionLen)
+                    {
+                        while (opt.description[currentIndex] != ' ' &&
+                               currentIndex != 0)
+                        {
+                            currentIndex -= 1;
+                        }
+                    }
+
+                    if (currentIndex != 0)
+                        for (uint64_t ii = 0; ii < descriptionLen; ii += 1)
+                            printf(" ");
+
+                    if (latestIndex > descriptionLen)
+                    {
+                        printf("%s\n", &(opt.description[currentIndex]));
+                        break;
+                    }
+                    else
+                    {
+                        printf("%.*s\n", (int)(latestIndex - currentIndex),
+                               &(opt.description[currentIndex]));
+                        opt.description[currentIndex]  = ' ';
+                        currentIndex                   = latestIndex;
+                        latestIndex                   += lengthToDescr;
+                    }
+                }
             }
             else
             {
@@ -442,7 +474,40 @@ extern "C"
 
             if (opt.argCount != 0)
             {
-                // TODO: Add args to printOpts
+                for (int64_t ii = 0; ii < lengthToDescr; ii += 1)
+                    printf(" ");
+
+                printf("=");
+
+                for (int64_t ii = 0; ii < opt.argCount; ii += 1)
+                {
+                    switch (opt.argTypes[i])
+                    {
+                    case I32BP:
+                        printf("I32");
+                        break;
+                    case I64BP:
+                        printf("I64");
+                        break;
+                    case U32BP:
+                        printf("U32");
+                        break;
+                    case U64BP:
+                        printf("U64");
+                        break;
+                    case STRBP:
+                        printf("STR");
+                        break;
+                    case ANYBP:
+                        printf("ANY");
+                        break;
+                    }
+
+                    if (ii < lengthToDescr && (ii + 1) != opt.argCount)
+                        printf(",");
+                    else
+                        printf("\n");
+                }
             }
         }
     }
