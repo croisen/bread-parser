@@ -1,7 +1,8 @@
 CC				= cc
 CFLAGS			= -Wall -Wextra -Wpedantic -Werror
-OPTS			= -O3 -g --std=gnu99 -fPIE
-DEBUG_FLAGS		= -D'__BCROI_PARSER_DEBUG'
+OPTS			= -O3 --std=gnu99 -fPIE
+RELEASE_FLAGS	= -s
+DEBUG_FLAGS		= -g
 
 EXE				= bread_parser_test
 MAIN			= bread_parser_test.c
@@ -15,10 +16,10 @@ VALGRIND_ARGS	= --track-origins=yes --leak-check=full -s --show-leak-kinds=all
 all: clean ${EXE}
 
 ${EXE}: ${MAIN}
-	${CC} ${CFLAGS} ${OPTS} -o $@ $?
+	${CC} ${CFLAGS} ${RELEASE_FLAGS} ${OPTS} -o $@ $?
 
 debug: ${MAIN}
-	${CC} ${CFLAGS} ${OPTS} -o ${EXE} $? ${DEBUG_FLAGS}
+	${CC} ${CFLAGS} ${DEBUG_FLAGS} ${OPTS} -o ${EXE} $?
 
 clean:
 	rm -f ${EXE}
