@@ -50,6 +50,7 @@ extern "C"
 #ifdef __CROI_BREAD_PARSER_IMPL__
 
 #include <inttypes.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -123,6 +124,7 @@ extern "C"
 
     void bParserMemTrackerInit(void);
     void bParserMemTrackerFree(void);
+    void bParserMemTrackerFreeSignal(int sig);
     void bParserMemTrackerExpand(void);
 
     void bParserMemTrackerInit(void)
@@ -137,6 +139,12 @@ extern "C"
                 "Failed to initialize memtracker for bread parser :(\n");
 
         atexit(bParserMemTrackerFree);
+        signal(SIGINT, bParserMemTrackerFreeSignal);
+    }
+
+    void bParserMemTrackerFreeSignal(int sig)
+    {
+        exit(sig);
     }
 
     void bParserMemTrackerFree(void)
@@ -434,36 +442,43 @@ extern "C"
                     printf(" ");
                 }
 
-                uint64_t currentIndex   = 0;
-                uint64_t latestIndex    = lengthToDescr;
+                // Why the hell is this not changing even with volatile
+                // TODO : Find out why it keeps looping for a 'while'
+                volatile uint64_t currentIndex = 0;
+                volatile uint64_t latestIndex  = lengthToDescr + 80;
+
                 uint64_t descriptionLen = (uint64_t)strlen(opt.description);
                 while (currentIndex < descriptionLen)
                 {
-                    if (currentIndex < descriptionLen)
+                    while (opt.description[latestIndex] != ' ' ||
+                           (latestIndex - currentIndex) >= 80)
                     {
-                        while (opt.description[currentIndex] != ' ' &&
-                               currentIndex != 0)
-                        {
-                            currentIndex -= 1;
-                        }
+                        latestIndex -= 1;
                     }
 
                     if (currentIndex != 0)
-                        for (uint64_t ii = 0; ii < descriptionLen; ii += 1)
-                            printf(" ");
-
-                    if (latestIndex > descriptionLen)
                     {
-                        printf("%s\n", &(opt.description[currentIndex]));
+                        for (int64_t ii = 0; ii < lengthToDescr; ii += 1)
+                            printf(" ");
+                    }
+
+                    if (latestIndex >= descriptionLen - 1)
+                    {
+                        if (currentIndex == 0)
+                            currentIndex += 1;
+
+                        printf("%s\n", &(opt.description[currentIndex - 1]));
+                        currentIndex = descriptionLen;
                         break;
                     }
                     else
                     {
-                        printf("%.*s\n", (int)(latestIndex - currentIndex),
+                        printf("%.*s\n", (int)(latestIndex - currentIndex - 1),
                                &(opt.description[currentIndex]));
-                        opt.description[currentIndex]  = ' ';
-                        currentIndex                   = latestIndex;
-                        latestIndex                   += lengthToDescr;
+
+                        currentIndex  = latestIndex;
+                        latestIndex  += 80;
+                        printf("%lu %lu\n", currentIndex, latestIndex);
                     }
                 }
             }
@@ -481,7 +496,7 @@ extern "C"
 
                 for (int64_t ii = 0; ii < opt.argCount; ii += 1)
                 {
-                    switch (opt.argTypes[i])
+                    switch (opt.argTypes[ii])
                     {
                     case I32BP:
                         printf("I32");
