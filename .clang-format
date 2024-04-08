@@ -1,13 +1,18 @@
 ColumnLimit: 80
 IndentWidth: 4
 
-AlignAfterOpenBracket: Align
+AlignAfterOpenBracket: BlockIndent
 AlignArrayOfStructures: Left
-AlignEscapedNewlines: true
-AlignOperands: true
+AlignOperands: Align
 AllowShortFunctionsOnASingleLine: false
-AlignTrailingComments: true
-BreakBeforeBraces: Allman
+AlignTrailingComments: Always
+
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+
+BreakBeforeBraces: Linux
+BreakBeforeBinaryOperators: false
+
 IndentCaseLabels: false
 
 AlignConsecutiveAssignments:

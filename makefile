@@ -1,8 +1,8 @@
 CC				= cc
 CFLAGS			= -Wall -Wextra -Wpedantic -Werror
-OPTS			= -O3 --std=gnu99 -fPIE
-RELEASE_FLAGS	= -s
-DEBUG_FLAGS		= -g
+OPTS			= --std=gnu99
+RELEASE_FLAGS	= -O3 -s
+DEBUG_FLAGS		= -Og -g
 
 EXE				= bread_parser_test
 MAIN			= bread_parser_test.c

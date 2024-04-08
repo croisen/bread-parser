@@ -26,6 +26,9 @@ int main(void)
         "laborum.");
     bParserAddArgs('d', NULL, 3, U64BP, U32BP, ANYBP);
 
+    bParserAddOpts('e', "echo", 0);
+    bParserAddArgs('e', NULL, 3, ANYBP, ANYBP, ANYBP);
+
     // Should trigger a warning?
     bParserAddDesc(BParserNoShortOpt, NULL, "I trigger an error bud");
 
