@@ -1,6 +1,6 @@
 CC				= cc
-CFLAGS			= -Wall -Wextra -Wpedantic -Werror
-OPTS			= --std=gnu99
+CFLAGS			= -Wall -Wextra -Wpedantic
+OPTS			= --std=c11
 RELEASE_FLAGS	= -O3 -s
 DEBUG_FLAGS		= -Og -g
 

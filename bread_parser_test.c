@@ -1,8 +1,39 @@
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+
 #define __CROI_BREAD_PARSER_IMPL__
 #include "bread_parser.h"
 
-int main(void)
+void initOpts(void);
+
+int main(int argc, char **argv)
 {
+    initOpts();
+    bParserParse(argc, argv);
+
+    if (bParserWasOptUsed('c', NULL)) {
+        printf("-c was used!\n");
+        void **x = bParserGetArgs('c', NULL);
+
+        /* These printfs bout to cause a crash if the args passed to -c is less
+         * than 3
+         */
+        printf("%" PRIu64 "\n", *((uint64_t *)x[0]));
+        printf("%" PRIu64 "\n", *((uint64_t *)x[1]));
+        printf("%s\n", (char *)x[2]);
+    }
+
+    return 0;
+}
+
+void initOpts(void)
+{
+    bParserSetProgramName("bread_parser");
+    bParserSetProgramVersion("2.0.1");
+    bParserSetAuthorName("croisen");
+    bParserSetAuthorEmail("andrewjames.git.gan@gmail.com");
+
     bParserAddOpts('a', "alpha", 0);
     bParserAddDesc('a', "alpha", "Alpha description or something");
 
@@ -16,14 +47,15 @@ int main(void)
     bParserAddOpts('d', NULL, 0);
     bParserAddDesc(
         'd', NULL,
-        "Long description so Lorem ipsum dolor sit amet, consectetur "
+        "I need a long description so; lorem ipsum dolor sit amet, consectetur "
         "adipisicing elit, sed do eiusmod tempor incididunt ut labore et "
         "dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
         "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. "
         "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum "
         "dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat "
         "non proident, sunt in culpa qui officia deserunt mollit anim id est "
-        "laborum.");
+        "laborum."
+    );
     bParserAddArgs('d', NULL, 3, U64BP, U32BP, ANYBP);
 
     bParserAddOpts('e', "echo", 0);
@@ -31,7 +63,4 @@ int main(void)
 
     // Should trigger a warning?
     bParserAddDesc(BParserNoShortOpt, NULL, "I trigger an error bud");
-
-    bParserPrintOpts();
-    return 0;
 }
