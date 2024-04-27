@@ -29,9 +29,9 @@ Try to open an issue if there's something bad happening...
 
 ## Usage
 
-In a c file you want to add this, define \_\_CROI_LIB_BREAD_PARSER_IMPL\_\_ only
-once and then include the bread_parser.h file, and hack away with your lsp and
-with the example below to guide you
+In a c file you want to add this, define \_\_CROI_LIB_BREAD_PARSER_IMPL\_\_
+only once and then include the bread_parser.h file, and hack away with your lsp
+and with the example below to guide you
 
 (sample)
 
@@ -54,7 +54,8 @@ int main(int argc, char **argv)
         printf("-c was used!\n");
         void **x = bParserGetArgs('c', NULL);
 
-        /* These printfs bout to cause a crash if the args passed to -c is less
+        /*
+         * These printfs bout to cause a crash if the args passed to -c is less
          * than 3
          */
         printf("%" PRIu64 "\n", *((uint64_t *)x[0]));
@@ -107,7 +108,10 @@ void initOpts(void)
 ## Compiling
 
 Well it's a header only library so no other c files needed to be compiled for
-this library to link to (maybe libc?)
+this library to link to (maybe libc?). Or if you want to avoid the multiple
+redefinition accidents by defining \_\_CROI_BREAD_PARSER_IMPL\_\_ multiple
+times then use the bread_parser_pair.\* instead and compile the .c version and
+link it to your main file
 
 ## Todo
 
@@ -144,3 +148,9 @@ this library to link to (maybe libc?)
 # If -c takes multiple args or an indefinite number of args one can do
 ./bread_parser_test.c -c 1 -c 2 -c 3
 ```
+
+-   [x] When specifying a definite amount of arguments for an option, do not
+        pre-allocate the array for the receiver of the args (Should I just make
+        it accept one type of arg even if it is not indefinite?)
+-   [x] Add a way to get the number of arguments passed into an option
+-   [ ]

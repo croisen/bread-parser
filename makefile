@@ -1,6 +1,5 @@
 CC				= cc
 CFLAGS			= -Wall -Wextra -Wpedantic
-OPTS			= --std=c11
 RELEASE_FLAGS	= -O3 -s
 DEBUG_FLAGS		= -Og -g
 
@@ -16,10 +15,10 @@ VALGRIND_ARGS	= --track-origins=yes --leak-check=full -s --show-leak-kinds=all
 all: clean ${EXE}
 
 ${EXE}: ${MAIN}
-	${CC} ${CFLAGS} ${RELEASE_FLAGS} ${OPTS} -o $@ $?
+	${CC} ${CFLAGS} ${RELEASE_FLAGS} -o $@ $?
 
 debug: ${MAIN}
-	${CC} ${CFLAGS} ${DEBUG_FLAGS} ${OPTS} -o ${EXE} $?
+	${CC} ${CFLAGS} ${DEBUG_FLAGS} -o ${EXE} $?
 
 clean:
 	rm -f ${EXE}
