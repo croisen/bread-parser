@@ -47,18 +47,12 @@ void bParserAddDesc(
 
 /*
  * Sets the arguments to be accepted by the option specified by add opt
- * Set argCount to 0 and only specify one argType to make an opt accept an
+ * Set argCount to -1 and only specify one argType to make an opt accept an
  * indefinite number of one argType
- * (Sad that documentation on macros don't show yet on macros as of April 8,
- * 2024)
  */
-#define bParserAddArgs(shortOpt, longOpt, argCount, argTypes, ...)             \
-    __bParserAddArgs(                                                          \
-        shortOpt, longOpt, argCount, argTypes __VA_OPT__(, ) __VA_ARGS__, NULL \
-    )
-
-void __bParserAddArgs(
-    const char shortOpt, const char *longOpt, uint64_t argCount, ...
+void bParserAddArgs(
+    const char shortOpt, const char *longOpt, int64_t argCount,
+    enum BParserArgType argType
 );
 
 /*
@@ -129,7 +123,6 @@ int64_t bParserGetNumOfArgs(const char shortOpt, const char *longOpt);
 
 #endif // __CROI_BREAD_PARSER_H__
 
-// #define __CROI_BREAD_PARSER_IMPL__
 #ifdef __CROI_BREAD_PARSER_IMPL__
 
 #ifdef __cplusplus
@@ -137,7 +130,7 @@ extern "C" {
 #endif // __cplusplus
 
 #include <signal.h>
-#include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct BParserMemTrackerArr {
@@ -156,7 +149,7 @@ typedef struct BParserOpt {
     bool isIndefinite;
 
     int64_t argCount;
-    enum BParserArgType *argTypes;
+    enum BParserArgType argType;
     uint64_t argsUsed;
     uint64_t argsCap;
     void **args;
@@ -217,6 +210,17 @@ static bool bParserParseMultShortOpt(char *opt, char *supposedArg);
 static bool bParserParseShortOpt(char *opt, char *supposedArg);
 static bool bParserParseLongOpt(char *opt, char *supposedArg);
 
+static uint64_t countChar(char *s, char c);
+
+static uint64_t countChar(char *s, char c)
+{
+    uint64_t count = 0;
+    for (uint64_t i = 0; s[i] != '\0'; i += 1)
+        count += (s[i] == c) ? 1 : 0;
+
+    return count;
+}
+
 static void bParserMemTrackerInit(void)
 {
     bParserMemTracker.init = true;
@@ -231,6 +235,7 @@ static void bParserMemTrackerInit(void)
 
     atexit(bParserMemTrackerFree);
     signal(SIGINT, bParserMemTrackerFreeSignal);
+    signal(SIGSEGV, bParserMemTrackerFreeSignal);
 }
 
 static void bParserMemTrackerFreeSignal(int sig)
@@ -573,7 +578,7 @@ static void bParserPrintOpts(void)
 
             printf("=");
             for (uint64_t ii = 0; ii < (uint64_t)opt.argCount; ii += 1) {
-                switch (opt.argTypes[ii]) {
+                switch (opt.argType) {
                 case I32BP:
                     printf("I32");
                     break;
@@ -612,7 +617,7 @@ static void bParserPrintOpts(void)
                 printf("%*s", lengthToDescr, "");
 
             printf("=");
-            switch (opt.argTypes[0]) {
+            switch (opt.argType) {
             case I32BP:
                 printf("I32");
                 break;
@@ -678,104 +683,90 @@ static bool bParserParseArgs(BParserOpt *opt, char *supposedArg)
         return false;
 
     initOptArgs(opt);
-    char *copy       = supposedArg;
-    uint64_t argsLen = (uint64_t)strlen(supposedArg);
+    uint64_t argCount = countChar(supposedArg, ',') + 1;
+    char *copy        = supposedArg;
+    for (uint64_t i = opt->argsUsed; i < argCount; i += 1) {
+        if (!opt->isIndefinite && i >= (uint64_t)opt->argCount) {
+            if (opt->shortOpt != BParserNoShortOpt)
+                bParserPanic(
+                    EXIT_FAILURE, BPCRIT,
+                    "Opt -%c only accepts %" PRId64
+                    " arguments see help for more info by passing -h\n",
+                    opt->shortOpt, opt->argCount
+                );
+            else
+                bParserPanic(
+                    EXIT_FAILURE, BPCRIT,
+                    "Opt --%s only accepts %" PRId64
+                    " arguments see help for more info by passing -h\n",
+                    opt->longOpt, opt->argCount
+                );
+        }
 
-    uint64_t index   = opt->argsUsed;
-    while ((supposedArg + argsLen) >= copy) {
+        uint64_t argLen = strcspn(copy, ",");
+        int scanfRes    = -2;
         expandOptArgsCap(opt);
-        uint64_t argLen = strcspn(supposedArg, ",");
-        enum BParserArgType type =
-            (opt->isIndefinite) ? opt->argTypes[0] : opt->argTypes[index];
-
-        copy[argLen] = '\0';
-        switch (type) {
-        case I32BP: {
-            int32_t x = 0;
-            if (sscanf(copy, "%" SCNd32, &x) == EOF)
-                bParserPanic(
-                    EXIT_FAILURE, BPFAIL,
-                    "Error parsing %s from %s as the opt '%s' "
-                    "expects an int32 "
-                    "as arg #%" PRIu64 "\n",
-                    copy, supposedArg,
-                    (opt->shortOpt == BParserNoShortOpt) ? opt->longOpt
-                                                         : &opt->shortOpt,
-                    index + 1
-                );
-            copy[argsLen]    = ',';
-            opt->args[index] = bParserMalloc(sizeof(x));
-            memcpy(opt->args[index], &x, sizeof(x));
+        switch (opt->argType) {
+        case I32BP: // FALLTHROUGH
+        case U32BP:
+            opt->args[i] = bParserMalloc(sizeof(uint32_t));
+            scanfRes     = scanf("%" SCNu32, (uint32_t *)(opt->args[i]));
+            if (scanfRes == EOF || scanfRes == 0) {
+                if (opt->shortOpt != BParserNoShortOpt)
+                    bParserPanic(
+                        EXIT_FAILURE, BPCRIT,
+                        "Opt -%c Arg #%" PRIu64
+                        " is wrong, it is expecting a 32 bit integer see help "
+                        "for more info by passing -h\n",
+                        opt->shortOpt, i + 1
+                    );
+                else
+                    bParserPanic(
+                        EXIT_FAILURE, BPCRIT,
+                        "Opt --%s Arg #%" PRIu64
+                        " is wrong, it is expecting a 32 bit integer see help "
+                        "for more info by passing -h\n",
+                        opt->longOpt, i + 1
+                    );
+            }
             break;
-        }
-        case I64BP: {
-            int64_t x = 0;
-            if (sscanf(copy, "%" SCNd64, &x) == EOF)
-                bParserPanic(
-                    EXIT_FAILURE, BPFAIL,
-                    "Error parsing %s from %s as the opt '%s' "
-                    "expects an int64 "
-                    "as arg #%" PRIu64 "\n",
-                    copy, supposedArg,
-                    (opt->shortOpt == BParserNoShortOpt) ? opt->longOpt
-                                                         : &opt->shortOpt,
-                    index + 1
-                );
-            copy[argsLen]    = ',';
-            opt->args[index] = bParserMalloc(sizeof(x));
-            memcpy(opt->args[index], &x, sizeof(x));
+        case I64BP: // FALLTHROUGH
+        case U64BP:
+            opt->args[i] = bParserMalloc(sizeof(uint64_t));
+            scanfRes     = sscanf(copy, "%" SCNu64, (uint64_t *)(opt->args[i]));
+            if (scanfRes == EOF || scanfRes == 0) {
+                if (opt->shortOpt != BParserNoShortOpt)
+                    bParserPanic(
+                        EXIT_FAILURE, BPCRIT,
+                        "Opt -%c Arg #%" PRIu64
+                        " is wrong, it is expecting a 64 bit integer see help "
+                        "for more info by passing -h\n",
+                        opt->shortOpt, i + 1
+                    );
+                else
+                    bParserPanic(
+                        EXIT_FAILURE, BPCRIT,
+                        "Opt --%s Arg #%" PRIu64
+                        " is wrong, it is expecting a 64 bit integer see help "
+                        "for more info by passing -h\n",
+                        opt->longOpt, i + 1
+                    );
+            }
             break;
-        }
-        case U32BP: {
-            uint32_t x = 0;
-            if (sscanf(copy, "%" SCNu32, &x) == EOF)
-                bParserPanic(
-                    EXIT_FAILURE, BPFAIL,
-                    "Error parsing %s from %s as the opt '%s' "
-                    "expects an uint32"
-                    " as arg #%" PRIu64 "\n",
-                    copy, supposedArg,
-                    (opt->shortOpt == BParserNoShortOpt) ? opt->longOpt
-                                                         : &opt->shortOpt,
-                    index + 1
-                );
-            copy[argsLen]    = ',';
-            opt->args[index] = bParserMalloc(sizeof(x));
-            memcpy(opt->args[index], &x, sizeof(x));
-            break;
-        }
-        case U64BP: {
-            uint64_t x = 0;
-            if (sscanf(copy, "%" SCNu64, &x) == EOF)
-                bParserPanic(
-                    EXIT_FAILURE, BPFAIL,
-                    "Error parsing %s from %s as the opt '%s' "
-                    "expects an uint64"
-                    " as arg #%" PRIu64 "\n",
-                    copy, supposedArg,
-                    (opt->shortOpt == BParserNoShortOpt) ? opt->longOpt
-                                                         : &opt->shortOpt,
-                    index + 1
-                );
-            copy[argsLen]    = ',';
-            opt->args[index] = bParserMalloc(sizeof(x));
-            memcpy(opt->args[index], &x, sizeof(x));
-            break;
-        }
         case STRBP: // FALLTHROUGH
         case ANYBP:
-        default: {
-            opt->args[index] = bParserMalloc((argLen + 1) * sizeof(char));
-            strcpy((char *)opt->args[index], copy);
+            opt->args[i] = bParserCalloc(argLen + 1, sizeof(char));
+            memcpy(opt->args[i], copy, argLen);
             break;
-        }
+        default:
+            opt->args[i] = bParserCalloc(argLen + 1, sizeof(char));
+            memcpy(opt->args[i], copy, argLen);
+            break;
         }
 
         copy          += argLen + 1;
         opt->argsUsed += 1;
-        index         += 1;
     }
-
     return true;
 }
 
@@ -786,6 +777,9 @@ static bool bParserParseMultShortOpt(char *opt, char *supposedArg)
     char *copy           = opt;
     while (*copy != '\0') {
         BParserOpt *foundOpt = bParserFindOpt(*copy, NULL, false);
+        if (foundOpt == NULL)
+            return false;
+
         if ((foundOpt->argCount > 0 || foundOpt->isIndefinite) &&
             (*(copy + 1) != '\0')) {
             bParserLog(
@@ -834,6 +828,9 @@ static bool bParserParseShortOpt(char *opt, char *supposedArg)
         return bParserParseMultShortOpt(opt, supposedArg);
 
     BParserOpt *foundOpt = bParserFindOpt(*opt, NULL, false);
+    if (foundOpt == NULL)
+        return false;
+
     if ((foundOpt->argCount == 0 || !foundOpt->isIndefinite) &&
         foundOpt->isUsed)
         bParserLog(
@@ -861,8 +858,11 @@ static bool bParserParseLongOpt(char *opt, char *supposedArg)
     char *copy       = (char *)bParserMalloc((optLen + 1) * sizeof(char));
     strcpy(copy, opt);
 
+    BParserOpt *foundOpt = bParserFindOpt(BParserNoShortOpt, copy, false);
+    if (foundOpt == NULL)
+        return false;
+
     if (optLen == toEqual) {
-        BParserOpt *foundOpt = bParserFindOpt(BParserNoShortOpt, copy, false);
         if ((foundOpt->argCount == 0 || !foundOpt->isIndefinite) &&
             foundOpt->isUsed)
             bParserLog(
@@ -920,7 +920,7 @@ void bParserAddOpts(const char shortOpt, const char *longOpt, int64_t group)
     newOpt->isUsed       = false;
     newOpt->isIndefinite = false;
     newOpt->argCount     = 0;
-    newOpt->argTypes     = NULL;
+    newOpt->argType      = ANYBP;
     newOpt->args         = NULL;
     newOpt->group        = group;
     newOpt->argsCap      = 0;
@@ -970,8 +970,9 @@ void bParserAddDesc(
     }
 }
 
-void __bParserAddArgs(
-    const char shortOpt, const char *longOpt, int64_t argCount, ...
+void bParserAddArgs(
+    const char shortOpt, const char *longOpt, int64_t argCount,
+    enum BParserArgType type
 )
 {
     if (!bParserOptDynArr.init)
@@ -984,38 +985,12 @@ void __bParserAddArgs(
     if (opt == NULL)
         return;
 
-    va_list ap;
-    va_start(ap, argCount);
-
-    if (argCount == -1) {
+    if (argCount == -1)
         opt->isIndefinite = true;
-        opt->argTypes =
-            (enum BParserArgType *)bParserMalloc(sizeof(enum BParserArgType));
-        opt->argTypes[0] = va_arg(ap, enum BParserArgType);
+    else
+        opt->argCount = argCount;
 
-        va_end(ap);
-        return;
-    }
-
-    if (argCount < -1) {
-        bParserLog(
-            BPFAIL, "Cannot set the argcount to be less than -1, as -1 is a "
-                    "specifier to make an opt take an indefinite number of a "
-                    "specific type of argument\n"
-        );
-        va_end(ap);
-        return;
-    }
-
-    opt->argCount = argCount;
-    opt->argTypes = (enum BParserArgType *)bParserMalloc(
-        argCount * sizeof(enum BParserArgType)
-    );
-    for (int64_t i = 0; i < argCount; i += 1) {
-        opt->argTypes[i] = va_arg(ap, enum BParserArgType);
-    }
-
-    va_end(ap);
+    opt->argType = type;
 }
 
 void bParserSetProgramName(char *name)
@@ -1064,14 +1039,14 @@ void bParserParse(int argc, char **argv)
                 exit(EXIT_SUCCESS);
             }
             parsedSupposedArg =
-                (bParserParseLongOpt(&(argv[i][2]), supposedArg)) ? 1 : 0;
+                (bParserParseLongOpt(argv[i] + 2, supposedArg)) ? 1 : 0;
         } else if (isShortOpt) {
             if (argv[i][1] == 'h' || argv[i][1] == '?') {
                 bParserPrintHelp();
                 exit(EXIT_SUCCESS);
             }
             parsedSupposedArg =
-                (bParserParseShortOpt(&(argv[i][1]), supposedArg)) ? 1 : 0;
+                (bParserParseShortOpt(argv[i] + 1, supposedArg)) ? 1 : 0;
         }
 
         i += parsedSupposedArg;
@@ -1122,7 +1097,7 @@ int64_t bParserGetNumOfArgs(const char shortOpt, const char *longOpt)
     if (opt == NULL)
         return 0;
 
-    if (opt->argCount == 0)
+    if (opt->argCount == 0 && !opt->isIndefinite)
         return 0;
 
     return opt->argsUsed;

@@ -150,7 +150,6 @@ link it to your main file
 ```
 
 -   [x] When specifying a definite amount of arguments for an option, do not
-        pre-allocate the array for the receiver of the args (Should I just make
-        it accept one type of arg even if it is not indefinite?)
+        pre-allocate the array for the receiver of the args
 -   [x] Add a way to get the number of arguments passed into an option
--   [ ]
+-   [x] Make it accept only one type of arg even if it is not indefinite

@@ -49,16 +49,10 @@ void bParserAddDesc(
  * Sets the arguments to be accepted by the option specified by add opt
  * Set argCount to -1 and only specify one argType to make an opt accept an
  * indefinite number of one argType
- * (Sad that documentation on macros don't show yet on macros as of April 8,
- * 2024)
  */
-#define bParserAddArgs(shortOpt, longOpt, argCount, argTypes, ...)             \
-    __bParserAddArgs(                                                          \
-        shortOpt, longOpt, argCount, argTypes __VA_OPT__(, ) __VA_ARGS__, NULL \
-    )
-
-void __bParserAddArgs(
-    const char shortOpt, const char *longOpt, int64_t argCount, ...
+void bParserAddArgs(
+    const char shortOpt, const char *longOpt, int64_t argCount,
+    enum BParserArgType argType
 );
 
 /*
