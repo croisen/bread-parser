@@ -447,12 +447,12 @@ static void bParserPrintOpts(void)
             printf("\n");
         }
 
-        if (opt.argCount > 0 && !opt.isIndefinite) {
+        if (opt.argCount > 0 || opt.isIndefinite) {
             if (opt.description != NULL)
                 printf("%*s", lengthToDescr, "");
 
             printf("=");
-            for (uint64_t ii = 0; ii < (uint64_t)opt.argCount; ii += 1) {
+            for (uint64_t ii = 0; ii < (uint64_t)labs(opt.argCount); ii += 1) {
                 switch (opt.argType) {
                 case I32BP:
                     printf("I32");
@@ -474,58 +474,15 @@ static void bParserPrintOpts(void)
                     break;
                 }
 
-                if (ii < (uint64_t)lengthToDescr &&
+                if (opt.isIndefinite)
+                    printf("...\n");
+                else if (ii < (uint64_t)lengthToDescr &&
                     (ii + 1) != (uint64_t)opt.argCount)
                     printf(",");
                 else
                     printf("\n");
             }
-
-            /*
-             * Extra newline so that the args can feel separated from
-             * the next opt?
-             */
-            if (opt.description != NULL)
-                printf("\n");
-        } else if (opt.isIndefinite) {
-            if (opt.description != NULL)
-                printf("%*s", lengthToDescr, "");
-
-            printf("=");
-            switch (opt.argType) {
-            case I32BP:
-                printf("I32");
-                break;
-            case I64BP:
-                printf("I64");
-                break;
-            case U32BP:
-                printf("U32");
-                break;
-            case U64BP:
-                printf("U64");
-                break;
-            case STRBP:
-                printf("STR");
-                break;
-            case ANYBP:
-                printf("ANY");
-                break;
-            }
-
-            printf("...\n");
-
-            /*
-             * Extra newline so that the args can feel separated from
-             * the next opt?
-             */
-            if (opt.description != NULL)
-                printf("\n");
         } else if (opt.description == NULL)
-            /*
-             * Well if there's no description and no args well it doesn't
-             * really print a newline anywhere except here
-             */
             printf("\n");
     }
 }
@@ -556,6 +513,8 @@ static bool bParserParseArgs(BParserOpt *opt, char *supposedArg)
 {
     if (opt->argCount == 0 && !opt->isIndefinite)
         return false;
+
+    opt->isUsed = true;
 
     initOptArgs(opt);
     uint64_t argCount = countChar(supposedArg, ',') + 1;
@@ -591,7 +550,8 @@ static bool bParserParseArgs(BParserOpt *opt, char *supposedArg)
                     bParserPanic(
                         EXIT_FAILURE, BPCRIT,
                         "Opt -%c Arg #%" PRIu64
-                        " is wrong, it is expecting a 32 bit integer see help "
+                        " is wrong, it is expecting a 32 bit integer see "
+                        "help "
                         "for more info by passing -h\n",
                         opt->shortOpt, i + 1
                     );
@@ -599,7 +559,8 @@ static bool bParserParseArgs(BParserOpt *opt, char *supposedArg)
                     bParserPanic(
                         EXIT_FAILURE, BPCRIT,
                         "Opt --%s Arg #%" PRIu64
-                        " is wrong, it is expecting a 32 bit integer see help "
+                        " is wrong, it is expecting a 32 bit integer see "
+                        "help "
                         "for more info by passing -h\n",
                         opt->longOpt, i + 1
                     );
@@ -614,7 +575,8 @@ static bool bParserParseArgs(BParserOpt *opt, char *supposedArg)
                     bParserPanic(
                         EXIT_FAILURE, BPCRIT,
                         "Opt -%c Arg #%" PRIu64
-                        " is wrong, it is expecting a 64 bit integer see help "
+                        " is wrong, it is expecting a 64 bit integer see "
+                        "help "
                         "for more info by passing -h\n",
                         opt->shortOpt, i + 1
                     );
@@ -622,7 +584,8 @@ static bool bParserParseArgs(BParserOpt *opt, char *supposedArg)
                     bParserPanic(
                         EXIT_FAILURE, BPCRIT,
                         "Opt --%s Arg #%" PRIu64
-                        " is wrong, it is expecting a 64 bit integer see help "
+                        " is wrong, it is expecting a 64 bit integer see "
+                        "help "
                         "for more info by passing -h\n",
                         opt->longOpt, i + 1
                     );
@@ -862,10 +825,9 @@ void bParserAddArgs(
 
     if (argCount == -1)
         opt->isIndefinite = true;
-    else
-        opt->argCount = argCount;
 
-    opt->argType = type;
+    opt->argCount = argCount;
+    opt->argType  = type;
 }
 
 void bParserSetProgramName(char *name)
@@ -932,9 +894,6 @@ bool bParserWasOptUsed(const char shortOpt, const char *longOpt)
 {
     BParserOpt *opt = bParserFindOpt(shortOpt, longOpt, false);
     if (opt == NULL)
-        return false;
-
-    if (opt->argsUsed == 0)
         return false;
 
     return opt->isUsed;

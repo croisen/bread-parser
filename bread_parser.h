@@ -443,7 +443,6 @@ bParserFindOpt(const char shortOpt, const char *longOpt, bool noWarn)
         for (uint64_t i = 0; i < bParserOptDynArr.used; i += 1) {
             if (bParserOptDynArr.opts[i].longOpt == NULL)
                 continue;
-
             if (strcmp(bParserOptDynArr.opts[i].longOpt, longOpt) == 0)
                 return bParserOptDynArr.opts + i;
         }
@@ -537,13 +536,6 @@ static void bParserPrintOpts(void)
             // -- alternative for nothing
             printf("%*s", 2, "");
 
-        /*
-         * Done: Try to keep track of the 80 line limit in the output?
-         * Nah just let it be for now
-         * I couldn't just let it be...
-         * And dem was my previous solution bad, there were 2-3 loops inside
-         * this if block back then...
-         */
         if (opt.description != NULL) {
             // Some space after the long opt
             printf("%*s", longestOptLen - currentOptLen + 4, "");
@@ -572,12 +564,12 @@ static void bParserPrintOpts(void)
             printf("\n");
         }
 
-        if (opt.argCount > 0 && !opt.isIndefinite) {
+        if (opt.argCount > 0 || opt.isIndefinite) {
             if (opt.description != NULL)
                 printf("%*s", lengthToDescr, "");
 
             printf("=");
-            for (uint64_t ii = 0; ii < (uint64_t)opt.argCount; ii += 1) {
+            for (uint64_t ii = 0; ii < (uint64_t)labs(opt.argCount); ii += 1) {
                 switch (opt.argType) {
                 case I32BP:
                     printf("I32");
@@ -599,58 +591,17 @@ static void bParserPrintOpts(void)
                     break;
                 }
 
-                if (ii < (uint64_t)lengthToDescr &&
+                if (opt.isIndefinite) {
+                    printf("...\n");
+                    break;
+                }
+                else if (ii < (uint64_t)lengthToDescr &&
                     (ii + 1) != (uint64_t)opt.argCount)
                     printf(",");
                 else
                     printf("\n");
             }
-
-            /*
-             * Extra newline so that the args can feel separated from
-             * the next opt?
-             */
-            if (opt.description != NULL)
-                printf("\n");
-        } else if (opt.isIndefinite) {
-            if (opt.description != NULL)
-                printf("%*s", lengthToDescr, "");
-
-            printf("=");
-            switch (opt.argType) {
-            case I32BP:
-                printf("I32");
-                break;
-            case I64BP:
-                printf("I64");
-                break;
-            case U32BP:
-                printf("U32");
-                break;
-            case U64BP:
-                printf("U64");
-                break;
-            case STRBP:
-                printf("STR");
-                break;
-            case ANYBP:
-                printf("ANY");
-                break;
-            }
-
-            printf("...\n");
-
-            /*
-             * Extra newline so that the args can feel separated from
-             * the next opt?
-             */
-            if (opt.description != NULL)
-                printf("\n");
         } else if (opt.description == NULL)
-            /*
-             * Well if there's no description and no args well it doesn't
-             * really print a newline anywhere except here
-             */
             printf("\n");
     }
 }
@@ -716,16 +667,16 @@ static bool bParserParseArgs(BParserOpt *opt, char *supposedArg)
                     bParserPanic(
                         EXIT_FAILURE, BPCRIT,
                         "Opt -%c Arg #%" PRIu64
-                        " is wrong, it is expecting a 32 bit integer see help "
-                        "for more info by passing -h\n",
+                        " is wrong, it is expecting a 32 bit integer see "
+                        "help for more info by passing -h\n",
                         opt->shortOpt, i + 1
                     );
                 else
                     bParserPanic(
                         EXIT_FAILURE, BPCRIT,
                         "Opt --%s Arg #%" PRIu64
-                        " is wrong, it is expecting a 32 bit integer see help "
-                        "for more info by passing -h\n",
+                        " is wrong, it is expecting a 32 bit integer see "
+                        "help for more info by passing -h\n",
                         opt->longOpt, i + 1
                     );
             }
@@ -739,8 +690,8 @@ static bool bParserParseArgs(BParserOpt *opt, char *supposedArg)
                     bParserPanic(
                         EXIT_FAILURE, BPCRIT,
                         "Opt -%c Arg #%" PRIu64
-                        " is wrong, it is expecting a 64 bit integer see help "
-                        "for more info by passing -h\n",
+                        " is wrong, it is expecting a 64 bit integer see "
+                        "help for more info by passing -h\n",
                         opt->shortOpt, i + 1
                     );
                 else
@@ -785,12 +736,9 @@ static bool bParserParseMultShortOpt(char *opt, char *supposedArg)
             bParserLog(
                 BPWARN,
                 "Using an opt that takes an argument such as -%c at the "
-                "start "
-                "or the middle of a multi short opt commandline argument "
-                "is "
-                "annoying to parse, so the argument '%s' will not be used "
-                "for "
-                "-%c and will only used for -%c in this multi short opt "
+                "start or the middle of a multi short opt commandline argument "
+                "is annoying to parse, so the argument '%s' will not be used "
+                "for -%c and will only used for -%c in this multi short opt "
                 "commandline argument: -%s\n",
                 foundOpt->shortOpt, supposedArg, foundOpt->shortOpt,
                 opt[strlen(opt) - 1], opt
@@ -913,7 +861,6 @@ void bParserAddOpts(const char shortOpt, const char *longOpt, int64_t group)
         bParserOptDynArrInit();
 
     BParserOpt *newOpt   = (BParserOpt *)bParserMalloc(sizeof(BParserOpt));
-
     newOpt->shortOpt     = shortOpt;
     newOpt->longOpt      = NULL;
     newOpt->description  = NULL;
@@ -925,7 +872,6 @@ void bParserAddOpts(const char shortOpt, const char *longOpt, int64_t group)
     newOpt->group        = group;
     newOpt->argsCap      = 0;
     newOpt->argsUsed     = 0;
-
     if (longOpt != NULL) {
         uint64_t longOptLen = strlen(longOpt);
         newOpt->longOpt = (char *)bParserCalloc(longOptLen + 1, sizeof(char));
@@ -987,10 +933,9 @@ void bParserAddArgs(
 
     if (argCount == -1)
         opt->isIndefinite = true;
-    else
-        opt->argCount = argCount;
 
-    opt->argType = type;
+    opt->argCount = argCount;
+    opt->argType  = type;
 }
 
 void bParserSetProgramName(char *name)
